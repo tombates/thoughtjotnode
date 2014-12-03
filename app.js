@@ -7,7 +7,8 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 // Database
 var mongo = require('mongoskin');
-var db = mongo.db("mongodb://localhost:27017/ThoughtJotNode", {native_parser:true});
+//var db = mongo.db("mongodb://localhost:27017/ThoughtJotNode", {native_parser:true});
+var db = mongo.db("mongodb://heroku_app32162654:mlab13!@ds051720.mongolab.com:51720/heroku_app32162654", {native_parser:true});
 
 var routes = require('./routes/index');
 var users = require('./routes/users');

@@ -7,19 +7,18 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 // Database
 var mongo = require('mongoskin');
+//console.log("app.js connecting to db");
 //var db = mongo.db("mongodb://localhost:27017/ThoughtJotNode", {native_parser:true});
-var db = mongo.db("mongodb://heroku_app32162654:mlab13!@ds051720.mongolab.com:51720/heroku_app32162654", {native_parser:true});
+var db = mongo.db(process.env.MONGOLAB_URI, {native_parser:true});
+//console.log(db);
+//var db = mongo.db("mongodb://heroku_app32162654:mlab13!@ds051720.mongolab.com:51720/heroku_app32162654", {native_parser:true});
 
 var routes = require('./routes/index');
 var users = require('./routes/users');
 var jots = require('./routes/jots');
 var tags = require('./routes/tags');
-//var services = require('./routes/services');
-//var secrets = require('./routes/secrets');
 
 var app = express();
-
-var serverscopetest = "does router see this?";
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));

@@ -1,0 +1,214 @@
+extends layout
+
+
+block content
+  script.
+    var userData = !{JSON.stringify(data)}
+  #container
+    header
+      //span= data.userStatus ? "Jot away, " + data.userGivenName : "Please log in"
+      h1.thetitle= data.hdrtitle
+      div#drop-menu-opener.drop-menu
+        span#user-name= data.userGivenName
+        ul.sub-menu
+          // li ><a id="settingsOpener" class="topic">&nbsp;&nbsp;&#9674;&nbsp;&nbsp;Settings</a></li
+          //li
+          //  a.topic &nbsp;&nbsp;&loz;&nbsp;&nbsp;Your Account
+          //li
+          //  a.topic &nbsp;&nbsp;&loz;&nbsp;&nbsp;Export selected jots
+          li
+            a#helpOpener.topic &nbsp;&nbsp;&loz;&nbsp;&nbsp;Using Thought Jot
+          li
+            a#importJots.topic(title='Import JSON jots') &nbsp;&nbsp;&loz;&nbsp;&nbsp;Import
+          //li
+          //  a#emailJots.topic &nbsp;&nbsp;&loz;&nbsp;&nbsp;Send selected jots
+          li
+            a#deleteJots.topic &nbsp;&nbsp;&loz;&nbsp;&nbsp;Delete selected jots
+          li
+            a.topic(href="./logout") &nbsp;&nbsp;&loz;&nbsp;&nbsp;Logout
+    form(type='post', onsubmit='tj.addJot(); return false;')
+      // input type"text" id="todo" placeholder="What'cha got to do?" style="width:200px;" /
+      .jottextarea
+        //textarea#jot_composer.jot(placeholder='Type a New Jot')
+        div#jot_composer.jot(placeholder='Type a New Jot' contentEditable='true')
+        #rightcontrols
+          #rightcontrols_header
+            span#rctls_hdr_text
+              | Tag&nbsp;Selector
+              span#space &nbsp;
+              | Filter&nbsp;Options
+          #filterby_div
+            input#filter_by_date(type='checkbox', onclick='tj.toggleDateFilter(); return true;', value='filter')
+            | By Date Range
+            br
+            #filter_date_div.display_none
+              // input type="button" id="startdate_btn" value="" title="Choose start date"
+              input#startdate(type='text', onclick='tj.raiseCalendar(this.id); return false;', placeholder='start date', maxlength='12', title='Click for a calendar, or enter manually as mm/dd/yyyy.')
+              br
+              // input type="button" id="enddate_btn" value="" title="Choose end date"
+              input#enddate(type='text', onclick='tj.raiseCalendar(this.id); return false;', placeholder='end date', maxlength='12', title='Click for a calendar, or enter manually as mm/dd/yyyy')
+              br
+            input#filter_by_tags(type='checkbox', onclick='tj.toggleTagFilter(); return true;', value='filter')
+            | By Tags
+            br
+            #filter_tag_div.display_none
+              input#filter_by_tags_or(type='radio', name='tagfilter', value='filter', title='Use the Tag Selector to choose the filter tags.')
+              |               Any Selected Tag
+              br
+              input#filter_by_tags_and(type='radio', name='tagfilter', value='filter', title='Use the Tag Selector to choose the filter tags.')
+              |               All Selected Tags
+              br
+          #tagselector_div
+            select#tagselector(multiple='')
+          #filterbtn_div
+            input#applyfilters_btn(type='button', onclick='tj.showFilteredJots()', value='Filter', title='Apply the filter options.')
+          input#stagetags_btn(type='button', onclick='tagMgr.stageTags(); return false;', value='Stage tags', title='Move selected tags to the Tags: field below for attaching to the current jot.')
+      .jotaddbtn
+        input.addjot_img(type='submit', value='', title='Add this jot')
+        | &nbsp;&nbsp;Title:
+        input#add_titleinput(type='text', placeholder='untitled', maxlength='200')
+        | &nbsp;&nbsp;Tags:
+        input#add_tagsinput(type='text', placeholder='none', maxlength='200', title='Separate tags with commas')
+        input.mergetags_btn(type='button', onclick='tagMgr.mergeStagedTags(); return false;', value='Merge tags', title="Add or remove tags from the selector list above.\nTags preceeded with '-' (minus) will be removed.")
+    #jotcontrols
+      input#toggleOrder(type='button', onclick='tj.toggleOrdering(); return false;', title='Press to show oldest jots first.')
+      // input type="button" id="paginate_prev" onClick="tj.paginator(0); return false;" title="Press to see previous ten jots."/
+      // input type="button" id="paginate_next" onClick="tj.paginator(1); return false;" title="Press to see next ten jots."/
+      p#statusarea Status
+      p#selectall
+        input#checkall(type='checkbox')
+    #jotItems
+      // Each jot gets its own div inside the jotItems div.
+  // end container div
+  // This is the Settings dialog content, which shows only when user clicks the tools button:Settings link
+  #settingsDialog(title='Thought Jot Settings')
+    h4 Choose a remote storage service
+    input#remoteDropbox(type='radio', name='remotestorage', value='dropbox', checked='true')
+    | Use Dropbox
+    br
+    input#remoteGoogle(type='radio', name='remotestorage', value='google')
+    | Use Google Drive
+    br
+    br
+    input(type='button', value='Save', onclick='tj.settingsSet(1); return false;')
+    input(type='button', value='Cancel', onclick='tj.settingsSet(0); return false;')
+  // This is the about / help dialog content, which shows only when user clicks the tools button:Help link
+  #helpDialog(title='Getting Started with Thought Jot')
+    h1.usage About Thought Jot, and how to use it
+    p.usage
+      | Welcome to Thought Jot, an online way to keep rich notes, or jots, that
+      | you can tag.
+    p.usage
+      | Thought Jot has a simple interface that supports jots with
+      | text and images. Each jot can have a title and tags attached to it,
+      | along with its content. You can use tags to organize your jots and you
+      | can restrict or filter the jots you see using tags and date ranges.
+    h1.usage Requirements
+    p.usage
+      | Thought Jot requires a modern browser such as recent versions of Chrome or Firefox, or IE 9 or later.
+    p.usage
+      | Currently Thought Jot also requires full support of HTML5 IndexedDB in order to retain locally your
+      | most recent filter criteria.
+      | Unfortunately, Safari still does not have full IndexedDB support. Thought Jot works fine on modern versions
+      | of Chrome, Firefox, and Internet Explorer. A future version will remove this restriction.
+    h1.usage First things first - telling Thought Jot where to store your jots
+    p.usage
+      | Thought Jot stores your jots remotely in a document database.
+      | When you first go to Thought Jot,
+      | you will see an account login/create dialog. You can create an account by entering an email address and a password or you
+      | can use the Guest account with email noone@nowhere.com and password GuestPass1. The Guest account is global, meaning you will be entering jots
+      | that can be seen by anyone else who uses the Guest account. In addition, guest jots will not be persisted remotely for
+      | more than 24 hours. So to really use Thought Jot, you need to create an account.
+    h1.usage Jotting
+    p.usage
+      | New jots are created in the compose area at the top of the page. For simple jots, just type
+      | your content. You can also add images from other web pages by copying the image and pasting it into the jot.
+    p.usage
+      | When you click the plus button just below the lower left corner of the entry area, your new jot will be
+      | added to the jots visible below the compose area. Each jot gets a blue header with the jot's title, tags, creation date
+      | and time, an edit button and a delete button.
+    p.usage
+      | You can give your jot a title in the Title input field below the compose area. If you don&apos;t enter a title, Thought
+      | Jot will create a title
+      | from either the first 50 characters of the contents, or the contents preceeding the first period, question mark or exclamation point or a
+      | return, whichever is shortest. If you don't like the default title you can easily edit it later.
+    p.usage
+      | The displayed jots can be ordered with the newest or oldest jots at the top. Below the add button is
+      | the re-order button. If you hover your pointer over it you will see the alternate ordering you will get if you click it.
+      | If you entered a new jot and didn&apos;t see it appear, you&apos;re probably showing oldest jots first and so the new one went to
+      | the bottom. If so, just hit the re-order button.
+    h1.usage Editing, Collapsing and Deleting Jots
+    p.usage
+      | Any visible jot&apos;s content, title, and tags can be edited. To put a jot into editing mode
+      | click on the pencil icon on the left of the blue jot header. This will make the pencil turn into a check mark and
+      | the editable areas will turn light green. When you are done editing, click the check mark. Only one jot can be
+      | edited at a time.
+    p.usage
+      | You can collapse a jot to show only its blue header. You do this by clicking somewhere in the
+      | blue header that is not directly on the title, tags, or datestamp regions. The same operation will expand a collapsed jot.
+    p.usage
+      | You can delete a jot by clicking the X on the right side of a jot's blue header. You can also delete
+      | several jots by selecting the
+      | checkbox to the left of the delete X for each jot and then choosing "Delete selected jots" from the menu (showing your
+      | name) in the upper right corner. If you want to delete all or most of the jots showing, use the check-all box on the left
+      | just above the first jot and then un-check the jots you don't want deleted.
+    p.usage
+      |You will be asked to confirm any deletion action. Currently, deleting jots is not undoable. 
+    h1.usage Tagging
+    p.usage
+      | You can attach tags to jots when you first make a new jot or later. Tags allow you to see a subset of all
+      | your jots. You can select tags in the Tag Selector list. Click for one tag, then ctrl-click to select more, or ctrl-click
+      | an already selected tag to unselect it. Once you have selected your desired set of tags
+      | click the Stage Tags button. The selected tags will replace any tags in the Tags input field below the Stage Tags button.
+      | Alternatively you can just type tags into the Tags input field. Tags can contain spaces but not commas and cannot start
+      | with a dash or minus character (-). Because tags can contain spaces, multiple tags must be separated by commas.
+    p.usage
+      | At first there won&apos;t be any tags in your tag selector list. To add tags to the Tag Selector, type
+      | them in the Tags input field and click the Merge button. If you want to delete a tag from the Tag Selector then
+      | type it in the Tags input field preceeded by a minus sign (-) and when you hit Merge it will be removed if it is currently
+      | in the tag list. This will remove the tag from remote storage, not just locally. It will not affect jots previously tagged
+      | with the deleted tag(s). If you delete a tag by mistake, add it back by typing it in again and clicking the Merge button.
+    h1.usage Filtering
+    p.usage
+      | You can filter or restrict the jots that are displayed to show subsets of your jots. You can
+      | filter based on tags or date ranges.
+    p.usage
+      | To filter by tags, select the tags in the tag selector to the right of the compose area. Only tags visible in the tag
+      | selector can be used as filter criteria. Once you've selected the tags you want to filter on, check the
+      | &quot;By Tags&quot; checkbox under Filter Options and select one of the options. Use the merge button to
+      | add a tag to the tag selector list.
+    p.usage
+      | To filter by dates, check the &quot;By Date Range&quot; checkbox. Then click in either or both of the date fields to
+      | get a calendar. If you provide only one date you will only see jots made on that date. If you provide two dates (the order
+      | is not important) you will see all jots created between the two dates.
+    p.usage
+      | Once you&apos;ve set up your filtering criteria, click the Filter button. If you add a new jot that does not
+      | meet the current filter criteria, it will still show (otherwise, you might wonder if it really got added).
+      | You can just click the Filter button again if you don&apos;t want it to show.
+    h1.usage Understanding where jots, tags and filters are stored
+    p.usage
+      | Jots are currently stored remotely in a document database called MongoDB and Thought Jot is hosted at Heroku.com. The
+      | back-end of Thought Jot is a node.js application. 
+    p.usage
+      | Your tags are also stored remotely. This means that all your tags are available regardless of what device or browser you are currently using to access Thought Jot.
+    p.usage
+      | Your filter settings are stored locally, specific to the device you are on and the browser brand you are using. Thought Jot
+      | stores your most recently executed filter criteria locally whenever you hit the Filter button so that when you come back to
+      | the same device and use the same browser, the filter state will be restored to what it was previously. This means you could
+      | be working on one subset of your jots on one device (or browser) and another subset of your jots on another device or
+      | browser. But all the jots can be viewed on either device or browser just by turning all filtering off.
+    p.usage
+      | Your locally stored filter settings are tied to your account. Different people can use Thought Jot on the same computer
+      | and as long as they log in under different accounts their stored filter settings will remain distinct. And of course, your
+      | jots and tags themselves are always separate.
+    h1.usage That's It, Mostly...
+    p.usage
+      | I wrote Thought Jot partly as a node.js exercise, but even more because I've always wanted a good browser based
+      | alternative to my other method of keeping track of all my thoughts and reminders, namely random piles of paper layering
+      | my desk like a biofilm.
+    p.usage I also wanted to be able to control and play around with the feature set, so naturally I had to write it
+      | myself. I now keep it open pretty much all the time and the surface of my desk is becoming visible again. I think that's
+      | cherry wood under there. Who knew.
+    p.usage Jolly jotting!
+
+  // end of about / help content

@@ -1,0 +1,186 @@
+extends layout
+
+block content
+
+  #container
+    header
+      input#cloudButton(type='button', onclick="nbx.userConnectRequest('Dropbox'); return false;", value='', title='You are not connected to cloud storage.\
+      Click to connect.')
+      h1.thetitle= hdrtitle
+      .drop-menu
+        ul.sub-menu
+          // li ><a id="settingsOpener" class="topic">&nbsp;&nbsp;&#9674;&nbsp;&nbsp;Settings</a></li
+          li
+            a#helpOpener.topic &nbsp;&nbsp;&loz;&nbsp;&nbsp;Help
+    form(type='post', onsubmit='tj.addJot(); return false;')
+      // input type"text" id="todo" placeholder="What'cha got to do?" style="width:200px;" /
+      .jottextarea
+        textarea#jot_composer.jot(placeholder='Type a New Jot')
+        #rightcontrols
+          #rightcontrols_header
+            span#rctls_hdr_text
+              | Tag&nbsp;Selector
+              span#space &nbsp;
+              | Filter&nbsp;Options
+          #filterby_div
+            input#filter_by_date(type='checkbox', onclick='tj.toggleDateFilter(); return true;', value='filter')
+            | By Date Range
+            br
+            #filter_date_div.display_none
+              // input type="button" id="startdate_btn" value="" title="Choose start date"
+              input#startdate(type='text', onclick='tj.raiseCalendar(this.id); return false;', placeholder='start date', maxlength='12', title='Click for a calendar, or enter manually as mm/dd/yyyy.')
+              br
+              // input type="button" id="enddate_btn" value="" title="Choose end date"
+              input#enddate(type='text', onclick='tj.raiseCalendar(this.id); return false;', placeholder='end date', maxlength='12', title='Click for a calendar, or enter manually as mm/dd/yyyy')
+              br
+            input#filter_by_tags(type='checkbox', onclick='tj.toggleTagFilter(); return true;', value='filter')
+            | By Tags
+            br
+            #filter_tag_div.display_none
+              input#filter_by_tags_or(type='radio', name='tagfilter', value='filter', title='Use the Tag Selector to choose the filter tags.')
+              |               Any Selected Tag
+              br
+              input#filter_by_tags_and(type='radio', name='tagfilter', value='filter', title='Use the Tag Selector to choose the filter tags.')
+              |               All Selected Tags
+              br
+          #tagselector_div
+            select#tagselector(multiple='')
+          #filterbtn_div
+            input#applyfilters_btn(type='button', onclick='tj.showFilteredJots()', value='Filter')
+          input#stagetags_btn(type='button', onclick='tagMgr.stageTags(); return false;', value='Stage tags', title='Move selected tags to the new jot Tags: field')
+      .jotaddbtn
+        input.addjot_img(type='submit', value='', title='Add this jot')
+        | &nbsp;&nbsp;Title:
+        input#add_titleinput(type='text', placeholder='untitled', maxlength='200')
+        | &nbsp;&nbsp;Tags:
+        input#add_tagsinput(type='text', placeholder='none', maxlength='200', title='Separate tags with commas')
+        input.mergetags_img(type='button', onclick='tagMgr.mergeStagedTags(); return false;', value='Merge', title="Add tags to or subtract tags from the selector list above.\
+        Tags preceeded with '-' (minus) will be removed.")
+    #jotcontrols
+      input#toggleOrder(type='button', onclick='tj.toggleOrdering(); return false;', title='Press to show oldest jots first.')
+      // input type="button" id="paginate_prev" onClick="tj.paginator(0); return false;" title="Press to see previous ten jots."/
+      // input type="button" id="paginate_next" onClick="tj.paginator(1); return false;" title="Press to see next ten jots."/
+      p#statusarea Status
+    #jotItems
+      // Each jot gets its own div inside the jotItems div.
+  // end container div
+  // This is the Settings dialog content, which shows only when user clicks the tools button:Settings link
+  #settingsDialog(title='Thought Jot Settings')
+    h4 Choose a remote storage service
+    input#remoteDropbox(type='radio', name='remotestorage', value='dropbox', checked='true')
+    | Use Dropbox
+    br
+    input#remoteGoogle(type='radio', name='remotestorage', value='google')
+    | Use Google Drive
+    br
+    br
+    input(type='button', value='Save', onclick='tj.settingsSet(1); return false;')
+    input(type='button', value='Cancel', onclick='tj.settingsSet(0); return false;')
+  // This is the about / help dialog content, which shows only when user clicks the tools button:Help link
+  #helpDialog(title='Getting Started with Thought Jot')
+    h1.usage About Thought Jot, and how to use it
+    p.usage
+      | Welcome to Thought Jot, an online way to keep notes (jots) that
+      | sync across devices and that you can use to see different views of your notes on
+      | different devices.
+    p.usage
+      | Thought Jot has a simple interface that supports jots with
+      | text, links, and images. Each jot can have a title and tags attached to it,
+      | along with its content. You can restrict or filter the jots you see using
+      | tags and date ranges. Link text will usually be detected and made into an
+      | active hyperlink.
+    h1.usage Restrictions
+    p.usage
+      | Thought Jot requires full support of HTML5 IndexedDB. Unfortunately Safari still does not have
+      | full IndexedDB support. Thought Jot works on recent versions of Chrome, Firefox, and Internet Explorer.
+    h1.usage First things first - telling Thought Jot where to store your jots
+    p.usage
+      | Currently, Thought Jot stores your jots remotely using your Dropbox account. Of course, this can&apos;t be done without your permission. So before you can save your jots you need to tell the remote store you want to allow
+      | Thought Jot to put things there. The only things Thought Jot will put there are the jots themselves, your current tags list, and
+      | some bookkeeping data for the NimbusBase-based transport layer that stores jots to and retrieves jots from the remote storage location.
+    h1.usageindented Dropbox instructions
+    p.usageindented
+      | 1. Create a Dropbox account if you don&apos;t already have one. Then, when you launch
+      | Thought Jot for the first time you should see a big button in the upper left with a red X through it.
+    p.usageindented
+      | 2. Click
+      | on that button and you should be asked by Dropbox to allow the creation of and access to a &quot;tjbeta&quot; folder
+      | on Dropbox. You might be presented with this dialog more than once. Just click &quot;Allow&quot; each time. This should
+      | not repeat more than three times.
+    p.usageindented Normally, that&apos;s all there is to it.
+    p.usageindented
+      | Sometimes however, even though you&apos;ve done this it might
+      | take a while for the authorization to take effect. Also, occassionally you might see a green check on the Dropbox
+      | button but things are acting like Thought Jot is not communicating with Dropbox. Usually, clicking the button and repeating the  and repeating the allowing process should do the trick.
+    h1.usage Jotting
+    p.usage
+      | New jots are composed in the text area at the top of the page. For the simplest jots, just type
+      | your content. When you click the plus button to the lower left of the entry area, the jot will be
+      | added to the jots visible below the entry area.
+    p.usage
+      | You can also enter a title for your jot. If you don&apos;t enter a title, Thought Jot will create a title
+      | from either the first 40 characters or the contents preceeding the first period, question mark or exclamation point or a
+      | return, whichever is shortest. You can always edit the default title later.
+    p.usage
+      | You can also tag your jots by typing tags in the Tags field. Separate multiple tags with
+      | commas. Tags can contain spaces. The merge button will add new tags to the tag selector list, making them available to use
+      | in filtering. See the Tagging and Filtering sections for more information.
+    p.usage
+      | The displayed jots can be ordered with the newest or oldest jots at the top. Below the add button is
+      | the re-order button. If you hover your pointer over it you will see the order you will get if you click it.
+      | If you entered a new jot and didn&apos;t see it appear, you probably have oldest jots showing first and so the new one went to
+      | the bottom.
+    h1.usage Editing, Collapsing and Deleting Jots
+    p.usage
+      | Any visible jot&apos;s content, title, and tags can be edited. To put a jot into editing mode
+      | click on the pencil on the left of the blue jot header. This will make the pencil turn into a check mark and
+      | the editable areas will turn pink. When you are done editing click the check mark. Only one jot can be edited at a time.
+    p.usage
+      | You can collapse a jot to show only its blue header. You do this by clicking somewhere in the
+      | blue header that is not directly on the title, tags, or datestamp regions. The same operation will expand a collapsed jot.
+    p.usage
+      | You can delete a jot by clicking the X on the right side of the blue jot header. You will be asked
+      | to confirm the deletion. Currently, deleting a jot is not undoable.
+    h1.usage Tagging
+    p.usage
+      | You can attach tags to jots when you first make a new jot or later. Tags allow you to see a subset of all
+      | your jots. You can select tags in the Tag Selector list (click for one tag, then ctrl-click to select more) and then
+      | click the Stage Tags button. The selected tags will replace any tags in the Tags: text field below the Stage Tags button.
+      | Alternatively you can just type tags into the Tags: text field. Tags can contain spaces but not commas and cannot start
+      | with a dash or minus character (-). Multiple tags must be separated by commas.
+    p.usage
+      | At first there won&apos;t be any tags in your tag selector list. To add tags to the Tag Selector tag list, type
+      | them in the Tags: text field and click the Merge button. If you want to remove a tag from your Tag Selector tag list then
+      | type it in the Tags: text field preceeded by a minus sign (-) and when you hit Merge it will be removed if it is currently
+      | in the tag list. This will remove the tag from remote storage, not just locally. It will not affect jots previously tagged
+      | with the deleted tag(s). If you delete a tag by mistake, add it back by typing it in again and clicking the Merge button.
+    h1.usage Filtering
+    p.usage
+      | You can filter or restrict the jots that are displayed to subsets of all your jots. Currently you can
+      | filter based on tags or date ranges.
+    p.usage
+      | To filter by tags, select the tags in the tag selector. Then check the &quot;By Tags&quot; checkbox under Filter
+      | Options and
+      | select one of the options. Tags must exist in the tag selector list to be used in filtering. Use the merge button to
+      | add a tag to the tag selector list.
+    p.usage
+      | To filter by dates check the &quot;By Date Range&quot; checkbox. Then click in either or both of the date fields to
+      | get a calendar. If you only provide one date you will only see jots made on that date. If you provide two dates (the order
+      | is not important) you will see all jots created between the two dates.
+    p.usage
+      | Once you&apos;ve set up your filtering criteria, click the Filter button. If you add a new jot that does not
+      | meet the current filter criteria, it will still show. You can just click the Filter button again if you don&apos;t want it to
+      | show.
+    h1.usage Understanding where jots, tags and filters are stored
+    p.usage
+      | Jots are stored remotely. Currently this requires a Dropbox account. They might also be stored locally
+      | if the remote storage service is not available but the jots will be pushed to it when it becomes available. Assuming you are connected the jots will be stored or deleted in more or less real time.
+    p.usage
+      | Your tags are also stored remotely. This means that all your tags are available regardless of what device or browser you are currently using Thought Jot on.
+    p.usage
+      | Your filter settings are stored locally, specific to the device you are on and the browser brand you are using. Thought Jot stores your most recent filter criteria locally so that when you come back to the same device and use the same browser, the filter state will be restored to what it was previously. This means you could be working on one subset of your jots on one device (or browser) and another subset of your jots on another device or browser. But all the jots can be viewed on either device or browser just by turning all filtering off.
+    h1.usage How Thought Jot works
+    p.usage
+      | Thought Jot uses HTML5 IndexedDB for its local storage and the NimbusBase library to facilitate storage
+      | and retrieval of jots and tags from your remote storage provider. Future versions will move away from the NimbusBase library.
+  // end of about / help content

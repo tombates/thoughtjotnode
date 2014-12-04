@@ -29,8 +29,8 @@ block content
     form(type='post', onsubmit='tj.addJot(); return false;')
       // input type"text" id="todo" placeholder="What'cha got to do?" style="width:200px;" /
       .jottextarea
-        //textarea#jot_composer.jot(placeholder='Type a New Jot')
-        div#jot_composer.jot(placeholder='Type a New Jot' contentEditable='true')
+        //textarea#jot_composer.jot(placeholder='Type a New Jot') divs don't have the placeholder attr
+        div#jot_composer.jot(contentEditable='true')
         #rightcontrols
           #rightcontrols_header
             span#rctls_hdr_text

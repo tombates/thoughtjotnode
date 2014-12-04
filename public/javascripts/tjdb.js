@@ -180,10 +180,11 @@ tj.restoreFilteredState = function() {
     // get all of this user's tags, set the filtering, and show the jots
     $.getJSON('/tags/taglist', function(data) {
 
-        if(data === null)
-            return;
+        if(data !== null) {
+            tagMgr.populateTagSelector(data.tagList.split(","));
+            //return;
+        }
 
-        tagMgr.populateTagSelector(data.tagList.split(","));
         tj.restoreFilterControlsState(tj.filterObject.filterTags);
         tj.showFilteredJots();
     });    

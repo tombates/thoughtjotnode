@@ -5,12 +5,14 @@ var favicon = require('serve-favicon');
 var logger = require('morgan');
 var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
-// Database
 var mongo = require('mongoskin');
-//console.log("app.js connecting to db");
+
+// Get access to our database, depending on where it is
+// ---next line is for testing locally
 //var db = mongo.db("mongodb://localhost:27017/ThoughtJotNode", {native_parser:true});
+// ---next line if for running on heroku with MongloLab
 var db = mongo.db(process.env.MONGOLAB_URI, {native_parser:true});
-//console.log(db);
+// ---lesson: even though MONGOLAB_URI is exactly the below it will not work on heroku, I assume for security reasons
 //var db = mongo.db("mongodb://heroku_app32162654:mlab13!@ds051720.mongolab.com:51720/heroku_app32162654", {native_parser:true});
 
 var routes = require('./routes/index');

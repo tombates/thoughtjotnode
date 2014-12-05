@@ -62,6 +62,8 @@ router.get('/', stormpath.loginRequired, function(req, res) {
                                             console.log("USER CREATED, user _id = " + resultAdd._id);
                                             resData.userID = resultAdd._id;
                                             console.log(resData);
+                                            res.locals.user.customData['userSession'] = resData;
+                                            res.locals.user.save();
                                             res.render('index', {data: resData});
                                         });
                                     });
@@ -78,6 +80,8 @@ router.get('/', stormpath.loginRequired, function(req, res) {
             // }
             // else
             //     console.log("userjotcollection table: " + JSON.stringify(userjotcollection));
+            res.locals.user.customData['userSession'] = resData;
+            res.locals.user.save();
             req.app.set("userData", resData);
             res.render('index', {data: resData});
         }

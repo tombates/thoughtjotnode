@@ -131,6 +131,7 @@ tj.indexedDB.open = function() {
 
         var store = trans.objectStore("SessionState");
         var fsRequest = store.get(userData.userID);
+        console.log("tj.indexedDB.open retrieved IDB userData.userID: " + userData.userID);
         
         fsRequest.onsuccess = function(e) {
             if(fsRequest.result == undefined) {

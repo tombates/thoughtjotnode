@@ -40,7 +40,7 @@ header div.header_right_wordspage{
     border: 1px solid #666;
     -moz-border-radius: 5px;
     border-radius: 5px;
-    /*border: 1px solid #666;*/
+    box-shadow: 2px 2px 2px #888;
 }
 
 .drop-menu:hover {

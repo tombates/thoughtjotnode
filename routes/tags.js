@@ -1,10 +1,11 @@
 var express = require('express');
+var stormpath = require('express-stormpath');
 var router = express.Router();
 
 /*
  * GET usertags.
  */
-router.get('/taglist', function(req, res) {
+router.get('/taglist', stormpath.loginRequired, function(req, res) {
     var db = req.db;
 
     req.user.getCustomData(function(err, data) {
@@ -25,7 +26,7 @@ router.get('/taglist', function(req, res) {
 /*
  * POST to addtag
  */
-router.post('/addtag', function(req, res) {
+router.post('/addtag', stormpath.loginRequired, function(req, res) {
     var db = req.db;
     console.log("in addtag POST trying upsert with update: ");
 
@@ -49,7 +50,7 @@ router.post('/addtag', function(req, res) {
 /*
  * DELETE to deletetag
  */
-router.delete('/deletetag/:id', function(req, res) {
+router.delete('/deletetag/:id', stormpath.loginRequired, function(req, res) {
     // var db = req.db;
     // var jotToDelete = req.params.id;
     // db.collection('usertags').removeById(jotToDelete, function(err, result) {

@@ -88,6 +88,8 @@ tj.indexedDB.onerror = function(e){
 tj.indexedDB.open = function() {
     "use strict";
     
+    $('.no-fouc').removeClass('no-fouc');
+
     // Warn user that we do not support early versions of indexedDB
     if(!window.indexedDB) {    
         window.alert("We're sorry. Your browser,\n\n        " + navigator.userAgent + ",\n\ndoesn't support a stable version" +
@@ -1176,12 +1178,6 @@ tj.raiseCalendar = function(elementID) {
     $(which).datepicker();
 }
 
-/* Sets up the initial state of the Tag Selector UI list */
-// tj.restoreTagSelectorState = function() {
-//     tj.filtersClear();
-//     tagMgr.populateTagSelector();
-// }
-
 /* For some reason Firefox is remembering checkbox and radio states across reloads -- weird.
 *  So we explicitly clear them before getting the saved filter settings, as ugly as that is. */
 tj.filtersClear = function() {
@@ -1534,24 +1530,15 @@ tagMgr.selectTags = function(fromList) {
         }
     }
 }
+
 /*
 * Populates the Tag Selector list select element on the page with the tags stored on the remote.
 *
-* fromList - optional argument. If present fromList should be the definitive tags list as an
-*            array of strings. If fromList is undefined we will populate using the remote list.
+* fromList - an array of tag strings.
 */
 tagMgr.populateTagSelector = function(fromList) {
-    //var allTags = [];
-    //var tagList = fromList;
+
     var selector = document.getElementById('tagselector');
-
-    // $.getJSON('/tags/taglist', function(data) {
-
-    //     if(fromList === undefined) {   // meaning pull from remote
-    //         if(data === null)
-    //             return;
-    //         fromList = data.tagList.split(",");
-    //     }
 
         // now add however many of these: <option value="tagX">tagX</option>
         selector.innerHTML = "";
@@ -1562,8 +1549,6 @@ tagMgr.populateTagSelector = function(fromList) {
             newItem.innerHTML = fromList[i];
             selector.appendChild(newItem);
         }
-
-//    });
 }
 
 /*

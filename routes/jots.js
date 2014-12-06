@@ -1,10 +1,11 @@
 var express = require('express');
+var stormpath = require('express-stormpath');
 var router = express.Router();
 
 /*
  * GET userjots.
  */
-router.get('/jotlist', function(req, res) {
+router.get('/jotlist', stormpath.loginRequired, function(req, res) {
     console.log("in /jots/jotlist service");
     var db = req.db;
 
@@ -26,7 +27,7 @@ router.get('/jotlist', function(req, res) {
 /*
  * POST to addjot
  */
-router.post('/addjot', function(req, res) {
+router.post('/addjot', stormpath.loginRequired, function(req, res) {
     var db = req.db;
 
     req.user.getCustomData(function(err, data) {
@@ -44,7 +45,7 @@ router.post('/addjot', function(req, res) {
 /*
  * POST to editjot
  */
-router.post('/editjot', function(req, res) {
+router.post('/editjot', stormpath.loginRequired, function(req, res) {
     console.log("in /jots/editjot service");
     var db = req.db;
 
@@ -63,7 +64,7 @@ router.post('/editjot', function(req, res) {
 /*
  * DELETE to deletejot - deletes a single jot
  */
-router.delete('/deletejot/:id', function(req, res) {
+router.delete('/deletejot/:id', stormpath.loginRequired, function(req, res) {
     console.log("in /jots/deletejot/");
     var db = req.db;
 

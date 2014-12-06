@@ -8,17 +8,7 @@ var bodyParser = require('body-parser');
 var mongo = require('mongoskin');
 
 // Get access to our database, depending on where it is
-
-// ---next line is for testing locally
-var dbLocation = process.env.MONGOLAB_URI || "mongodb://localhost:27017/ThoughtJotNode";
-
-var db = mongo.db(dbLocation, {native_parser:true});
-
-// ---next line if for running on heroku with MongloLab
-//var db = mongo.db(process.env.MONGOLAB_URI, {native_parser:true});
-
-// ---lesson: even though MONGOLAB_URI is exactly the below it will not work on heroku, I assume for security reasons
-//var db = mongo.db("mongodb://heroku_app32162654:mlab13!@ds051720.mongolab.com:51720/heroku_app32162654", {native_parser:true});
+var db = mongo.db(process.env.MONGOLAB_URI || "mongodb://localhost:27017/ThoughtJotNode", {native_parser:true});
 
 var routes = require('./routes/index');
 var users = require('./routes/users');

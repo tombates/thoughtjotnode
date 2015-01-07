@@ -1,5 +1,9 @@
 node_modules
 backups
+exports_mongolab
+*.bat
 *.log
 *.txt
+views/chromebug.jade
+routes/chromebug.js
 

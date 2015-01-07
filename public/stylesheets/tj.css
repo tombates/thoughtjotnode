@@ -2,7 +2,7 @@
 /* CSS Document */
 body {
     background-color: #fff;
-  color: #222;
+  color: #000;
   font: 14px Arial;
 }
 
@@ -21,9 +21,7 @@ div {
     margin-top: 4px;
     margin-left:2px;
     background-image: url(..\/images\/dropboxbtn_notconnected.png);
-    /*background-position:  0px 0px;*/
     background-repeat: no-repeat;
-    /*border: solid 1px #000;*/
     border-top-left-radius:5px;
     border-top-right-radius:5px;
     border-bottom-left-radius:5px;
@@ -47,14 +45,11 @@ h1.thetitle {
   margin-left: 200px;
   margin-top: 10px;
   margin-bottom: 15px;
-  /*padding-top:10px;
-  padding-bottom:10px;*/
   color:#000;
   text-align:center;
   font: 200 25px/1.5 'Pacifico', Helvetica, sans-serif;
   text-shadow: 2px 2px 0px rgba(0,0,0,0.1);
   letter-spacing: 2px;
-  /*font: 16px Verdana, Geneva, sans-serif*/
 }
 
 h1.usage {
@@ -66,7 +61,6 @@ h1.usage {
   font-weight: 700;
 }p.usage {
   margin-left: 15px;
-  /*padding-bottom:10px;*/
   color:#000;
   font: 14px Verdana, Geneva, sans-serif
 }
@@ -80,7 +74,6 @@ h1.usageindented {
 }p.usageindented {
   margin-left: 30px;
   margin-right: 30px;
-  /*padding-bottom:10px;*/
   color:#000;
   font: 14px Verdana, Geneva, sans-serif
 }
@@ -90,7 +83,6 @@ h1.usageindented {
 	width:900px;
 	margin-left:auto;
 	margin-right:auto;
-	/*border: 1px dotted #000;*/
     border:solid 1px #000;
     border-radius:5px;
     box-shadow: 2px 2px 2px #888;
@@ -99,26 +91,44 @@ h1.usageindented {
 .jottextarea {
     border-top-left-radius:6px;
     border-top-right-radius:6px;
-    /*margin: 5px;
-    margin-top: 0px;
-	padding:5px;
-    padding-bottom: 0px;*/
 }
 .jotaddbtn {
     clear: both;
-	margin-bottom:10px;
+	margin-bottom:8px;
 }
 #add_titleinput {
     width:350px;
+    /*border: none;*/
+    outline:none;
+    border-radius:5px;
+    background-color: #eee;
 }
+/*#add_titleinput:focus {
+    outline:none;
+}*/
 #add_tagsinput {
-    width:300px;
+    width:375px;
+    /*border: none;*/
+    outline:none;
+    border-radius:5px;
+    background-color: #eee;
 }
+/*#add_tagsinput {
+    outline:none;
+}*/
 .display_block {
     display:block;
 }
 .display_none {
     display:none;
+}
+#jotsPerPage {
+    width: 30px;
+    padding:0px;
+    outline: none;
+    margin-left:5px;
+    border-radius:5px;
+    background-color: #eee;
 }
 #rightcontrols {
     float:right;
@@ -130,7 +140,6 @@ h1.usageindented {
     border-top-right-radius:6px;
     border-bottom-left-radius:6px;
     border-bottom-right-radius:6px;
-    /*background-color: #eef;    */
     background-color: #fff;    
 }
 #rightcontrols_header {
@@ -152,7 +161,7 @@ h1.usageindented {
 }
 #space {
     display: inline-block;
-    width:60px;
+    width:80px;
 }
 #filterby_div {
     float:right;
@@ -161,7 +170,6 @@ h1.usageindented {
     margin:0px;
     padding-top: 10px;
     padding-bottom: 5px;
-    /*background-color: #efe;*/
     background-color: #fff;
 }
 #filter_by_date {
@@ -191,70 +199,78 @@ h1.usageindented {
 }
 #applyfilters_btn {
     width:95px;
-    margin-left:190px;
+    height:25px;
+    margin-left:200px;
+    border-radius: 5px;
+    background-color: #ddd;
 }
 #tagselector_div {
     float:left;
-    /*height:225px;*/
     height:175px;
     width:150px;
     margin:0px;
     padding-top: 10px;
     padding-bottom: 5px;
-    /*background-color: #fee;*/
     background-color: #fff;
 }
 #tagselector{
     height:160px;
-    width:145px;
+    width:160px;
     margin:0px;
     margin-top:5px;
-    margin-bottom:5px;
+    margin-bottom:0px;
     margin-left: 4px;
+    padding:0px;
     border-radius:5px;
 }
+
 #stagetags_btn {
-    width: 100px;
-    margin-left:25px;
-/*    background-image: url(..\/images\/arrow-down20h-trans.png);
-    background-position:  58px 2px;
-    background-repeat: no-repeat;
+    width: 75px;
     height: 25px;
-    border: solid 1px #000;
-    border-top-left-radius:5px;
-    border-top-right-radius:5px;
-    border-bottom-left-radius:5px;
-    border-bottom-right-radius:5px;
-    background-color: #88a;
-    cursor: pointer;
-    outline: 0;*/
+    margin-left:5px;
+    border-radius: 5px;
+    background-color: #ddd;
+    background-image: url(..\/images\/arrow-down20h-trans.png);
+    background-repeat: no-repeat;
+    background-position: 10% 50%;
+    text-align: right;
 }
+
+#mergetags_btn {  /* temp  & silly - moves the add this jot button over */
+    width: 75px;
+    height: 25px;
+    margin-left:10px;
+    padding-left: -20px;
+    border-radius: 5px;
+    background-color: #ddd;
+    background-image: url(..\/images\/arrow-up20h-trans.png);
+    background-repeat: no-repeat;
+    background-position: 90% 50%;
+    text-align: left;
+}
+
 #jotcontrols {
-	height:35px;
+	height:40px;
     position:relative;    /* must be positioned so that statusarea position absolute works */
 	padding-top:5px;
     padding-bottom:5px;
     overflow: auto;
+    color: #444;
 }
 #toggleOrder {
-    margin-top: 5px;
-    margin-left:10px;
+    margin-top: 16px;
+    margin-left:16px;
     float:left;
+    background-color: #ddd;
     background-image: url(..\/images\/reorder-20h.png);
     background-position:  1px 1px;
     background-repeat: no-repeat;
     width: 24px;
     height: 24px;
-    border: solid 1px #000;
-    border-top-left-radius:5px;
-    border-top-right-radius:5px;
-    border-bottom-left-radius:5px;
-    border-bottom-right-radius:5px;
-    background-color: buttonface;
-    cursor: pointer;
-    outline: 0;
+    border-radius: 5px;
 }
-#paginate_prev {
+
+/*#paginate_prev {
     margin-top: 5px;
     margin-left:10px;
     float:left;
@@ -271,7 +287,8 @@ h1.usageindented {
     background-color: buttonface;
     cursor: pointer;
     outline: 0;
-}#paginate_next {
+}
+#paginate_next {
     margin-top: 5px;
     margin-left:10px;
     float:left;
@@ -288,8 +305,10 @@ h1.usageindented {
     background-color: buttonface;
     cursor: pointer;
     outline: 0;
-}
+}*/
+
 #statusarea {
+    /*color: #55d;*/
     position:absolute;
     left:55px;
     top:5px;
@@ -297,8 +316,28 @@ h1.usageindented {
     margin-bottom: 5px;
     margin-left: 0px;
     margin-right: 20px;
-    /*width:600px;
-    float:left;*/
+}
+
+#paginator {
+    /*color: #55d;*/
+    position:absolute;
+    left:55px;
+    top:28px;
+    margin-top:0px;
+    margin-bottom: 2px;
+    margin-left: 0px;
+    margin-right: 20px;
+}
+
+.paginationLinks {
+    color: #55d;
+    text-decoration: underline;
+    cursor: pointer;
+}
+.paginationLinksInactive {
+    color: #bbb;
+    text-decoration:none; 
+    cursor:default;
 }
 
 #selectall {
@@ -311,7 +350,6 @@ h1.usageindented {
 }
 
 form {
-	/*border:solid 2px #bb0;*/
     margin: 5px;
     clear: both;
     border:solid 1px #000;
@@ -320,17 +358,6 @@ form {
 }
 
 /* this is the jot composition area */
-textarea.jot {
-    width:500px;
-    height:225px;
-    min-height:100px;
-    max-height:400px;
-    max-width:500px;
-    padding:10px 10px 5px 10px;
-    border:solid 1px #000;
-    border-radius:6px;
-}
-/* this is the jot composition area as a div*/
 div.jot {
     display:inline-block;
     width:500px;
@@ -342,6 +369,11 @@ div.jot {
     border:solid 1px #000;
     border-radius:6px;
     overflow: auto;
+    float:left;
+    /* The float left fixes a nasty Chrome bug with moving inline-block div down
+       on insert newline in middle during compose. Oddly this causes returns to
+       create full <div></div>s instead of just inserting <br> elements but this
+       fixes the Chrome specific bug and doesn't seem to cause any other issues. */
 }
 
 a.edit {
@@ -354,7 +386,6 @@ a.edit {
 .selectjot {
   float:right;
   margin-top:13px;
-  /*margin-right:0px;*/
 }
 a.delete {
   cursor: pointer;
@@ -368,12 +399,11 @@ a.delete {
     border-radius:10px;
     box-shadow: 2px 2px 2px #888;
     margin:0px 5px 5px 5px;
-
 }
 
 .titlediv {
     height:40px;
-    background-color:#8aa;
+    background-color:#44a;
     border-top-left-radius:10px;
     border-top-right-radius:10px;
     border-bottom:solid 2px #000;
@@ -383,7 +413,7 @@ a.delete {
 .titleleftdiv {
     height:40px;
     width:50px;
-    background-color:#44a;
+    background-color:inherit;    /* NOT an automatically inherited property */
     border-top-left-radius:10px;
     margin:0px;
     padding:0px;
@@ -392,7 +422,7 @@ a.delete {
 .titlecenterdiv {
     height:40px;
     width:788px;
-    background-color:#44a;
+    background-color:inherit;
     margin:0px;
     padding:0px;
     float:left;
@@ -400,7 +430,7 @@ a.delete {
 .titlerightdiv {
     height:40px;
     width:50px;
-    background-color:#44a;
+    background-color:inherit;
     border-top-right-radius:10px;
     margin:0px;
     padding:0px;
@@ -408,7 +438,7 @@ a.delete {
 }
 
 .title {
-    background-color:#44a;
+    background-color:inherit;
     color:#ccc;
     font-size:14px;
     margin:0px;
@@ -417,15 +447,8 @@ a.delete {
     margin-left:0px;
     margin-right:15px;
 }
-/*.title_editing {
-    background-color:#fdd;
-    color:#000;
-    font-size:14px;
-    margin-left:15px;
-    margin-right:15px;
-}*/
 .titleinput {
-    background-color:#44a;
+    background-color:inherit;
     color:#fff;
     font-size:14px;
     margin:0px;
@@ -448,39 +471,33 @@ a.delete {
     margin-top:2px;
     margin-left:0px;
     margin-right:15px;
-    /*border:solid 1px #000;*/
 }
 
 .timestamp {
     height:14px;
-    background-color:#44a;
+    background-color:inherit;
     color:#ccc;
     font-size:12px;
     margin-top: 6px;
     margin-bottom:0px;
-    /*float:right;*/
 }
 .tagsspan {
-    background-color:#44a;
+    background-color:inherit;
     color:#ccc;
     font-size:14px;
     margin:0px;
     padding:0px;
     height:16px;
-    /*padding-left:15px;*/
     width:320px;
-    /*float:right;*/
 }
 .tagsinput {
-    /*background-color:#88a;*/
-    background-color:#44a;
+    background-color:inherit;
     color:#fff;
     font-size:14px;
     margin:0px;
     padding:0px;
     width:300px;
     height:16px;
-    /*margin-left:10px;*/
     border-width:0px;
 }
 .tagsinput_editing {
@@ -489,44 +506,31 @@ a.delete {
     font-size:14px;
     margin:0px;
     padding:0px;
-    /*margin-right:15px;*/
     width:300px;
     margin-left:10px;
-    /*border:solid 1px #000;*/
 }
-/*.tagspara {
-    background-color:#88a;
-    color:#ccc;
-    font-size:14px;
-    margin:0px;
-    padding:0px;
-    margin-top:5px;
-    width:500px;
-    height:16px;
-    margin-left:50px;
-    white-space:nowrap;
-}
-.tagspara_editing {
-    background-color:#fca;
-    color:#000;
-    font-size:14px;
-    margin:0px;
-    padding:0px;
-    margin-top:5px;
-    width:500px;
-    margin-left:50px;
-    white-space:nowrap;
-}*/
 
 #jotItems {
     padding-top: 5px;
     background-color: #fff;
 }
 
+/* This p style is for the fact that in IE in a contenteditable div a newline is turned into a <p> wrapper
+   on the entered text and because of <p> default style having a nonzero margin-top the first line jumps down
+   from where it was as soon as enter is hit. There is no consistency across browsers on what they do with
+   the return in a contenteditable div: Chrome wraps in <div></div> iff the div is floated, otherwise it uses
+   a simple <br>, which is what Firefox uses in all cases I've tested. */
+p {margin-top: 0px;}
+
 p.jottext {
+    color:#000;
     background-color:#fff;
     font-size:12px;
     margin:10px 20px 10px 20px;
+    /*overflow: hidden;*/
+    overflow: auto;
+      /*white-space: nowrap;*/
+    /*text-overflow: ellipsis;*/
 }
 p.jottext_collapsed {
     display:none;
@@ -544,37 +548,15 @@ p.jottext_editing {
     margin-left:10px;
     margin-top:10px;
     background-image: url(..\/images\/add20-trans.png);
-    background-position:  2px 2px;
+    background-position:  1px 1px;
     background-repeat: no-repeat;
     width: 26px;
     height: 26px;
-    border: solid 1px #000;
-    border-top-left-radius:5px;
-    border-top-right-radius:5px;
-    border-bottom-left-radius:5px;
-    border-bottom-right-radius:5px;
-    background-color: buttonface;
-    cursor: pointer;
-    outline: 0;
+    border-radius:5px;
+    background-color: #ddd;
 }
 
-.mergetags_btn {  /* temp  & silly - moves the add this jot button over */
-    margin-left:10px;
-    /*background-color: buttonface;
-    width: 38px;
-    height: 38px;
-    background-image: url(..\/images\/arrow-up20h-trans.png);
-    background-position:  2px 8px;
-    background-repeat: no-repeat;
-    border: solid 1px #000;
-    border-top-left-radius:5px;
-    border-top-right-radius:5px;
-    border-bottom-left-radius:5px;
-    border-bottom-right-radius:5px;
-    cursor: pointer;
-    outline: 0;*/
-}
-.cleartags_img {  /* temp  & silly - moves the add this jot button over */
+/*.cleartags_img {  
     margin-left:10px;
     background-image: url(..\/images\/cleartags32-trans.png);
     background-position:  2px 2px;
@@ -589,4 +571,4 @@ p.jottext_editing {
     background-color: #88a;
     cursor: pointer;
     outline: 0;
-}
+}*/

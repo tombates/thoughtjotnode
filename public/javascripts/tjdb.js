@@ -73,6 +73,15 @@ tj.filterObject.endDate = "";
 tj.filterObject.startMS = NaN;
 tj.filterObject.endMS = NaN;
 tj.filterObject.filterOrder = "newfirst"; // default ordering
+// the pagination section: mirrors the header object in the array returned by the /jots/jotlist route
+tj.filterObject.jotsFound = 1;
+tj.filterObject.jotsReturned = 1;
+tj.filterObject.jotsPerPage = 10;
+tj.filterObject.pageReturned = 1;
+tj.filterObject.pagesTotal = 1;
+tj.filterObject.currentPageUrl = "/jots/jotlist/:1at10";
+tj.filterObject.prevPageUrl = "/jots/jotlist/:1at10";
+tj.filterObject.nextPageUrl = "/jots/jotlist/:1at10";
 
 tagMgr = {};    // encapsulates tag management functions
 
@@ -228,7 +237,7 @@ tj.bindControls = function() {
     $("#startdate").datepicker();
     $("#enddate").datepicker();
 
-    // the select all jots checkbox
+    // the select-all-jots checkbox
     $("#checkall").click(function() {
         $(".selectjot").prop('checked', this.checked);
     });
@@ -252,28 +261,33 @@ tj.bindControls = function() {
       $( "#helpDialog" ).dialog( "open" );
     });
 
-    $( "#settingsDialog" ).dialog({
-      autoOpen: false,
-      show: {
-        effect: "fade",
-        duration: 500
-      },
-      hide: {
-        effect: "fade",
-        duration: 500
-      }
-    });
-
-    $( "#settingsOpener" ).click(function() {
-      console.log("in settingsOpener click handler");
-      $( "#settingsDialog" ).dialog( "option", "width", 600 );
-      $( "#settingsDialog" ).dialog( "open" );
-    });
-
     // bind the user menu items
-    //$('#emailJots').click(tj.emailJots);
     $('#importJots').click(tj.importJots);
     $('#deleteJots').click(tj.deleteJots);    //TODO take over single jot delete as well when working
+
+    // the jots per page input
+    $('#jotsPerPage').keyup(function(e) {
+        if(e.keyCode === 13) {
+            ppageStr = this.value;
+            if(ppageStr.trim() === "") {
+                this.value = tj.filterObject.jotsPerPage;
+                return;
+            }
+            var count = Number(ppageStr);
+            if(isNaN(count) || count < 1) {
+                this.value = tj.filterObject.jotsPerPage;
+                return;
+            }
+
+            count = Math.floor(count);    // incase of non-integer entry
+
+            // update the filterObject and showAllJots
+            tj.filterObject.jotsPerPage = count;
+            tj.filterObject.currentPageUrl = "/jots/jotlist/:" + String(tj.filterObject.pageReturned) + "at" + String(count);
+            tj.showAllJots(tj.filterObject);
+
+        }
+    });
 }
 
 // TODO move to utils.js
@@ -444,15 +458,16 @@ tj.emailJots = function() {
 }
 
 /*
-*  Returns an array containing the MongoDB _id value for all the selected jots.
+*  Returns an array containing the commonKeyTS value for all the selected jots.
 */
 tj.getSelectedJots = function() {
     var selectedJots = $('input:checkbox:checked.selectjot').map(function() {
-        return this.value;    // the mongoDB id for the jot
+        return this.value;    // the commonKeyTS for the jot
     }).get();
     console.log(selectedJots);
     return selectedJots;
 }
+
 /*
 *  Wrapper for innerAddJot. Validates that there is something to add and generates a
 *  default title from the jot content if no title was provided.
@@ -482,9 +497,22 @@ tj.addJot = function() {
 */
 tj.getDefaultTitle = function(jotText) {
     var prefix = jotText.substring(0, tj.DEFAULT_TITLE_LIMIT);
+
     // first check for newline within the limit and if there use the first line as the title
-    // - we separate out the newline piece for clarity
-    var firstline = prefix.split(/\r?\n|<br>/g)[0];
+    // - we separate out the newline piece for clarity. Each browser is different about how
+    //   it treats newline in a contenteditable div, and even changes what it does depending
+    //   on whether the div is styled with a float or not, crazy as that sounds. IE inserts
+    //   <p><p> around newlined text, Chrome uses simple <br>s unless there is a float on the
+    //   div in which case it uses <div></div>s and Firefox uses <br><br> for a floated div.
+    //   And we are forced to float the compose jot div left or Chrome does it's very weird
+    //   move-the-div-down bug upon a newline being inserted into existing text...
+    //   In addition, IE does the first <p> wrapping to the text before the first newline!
+    //   This means our regex will our split will have the first element blank instead of it
+    //   being the piece we want. Thus this hideous <p> prefix kludge
+    if(prefix.search("<p>") === 0)
+        prefix = prefix.substr(3);
+    var firstline = prefix.split(/\r?\n|<p>|<\/p>|<br>|<div>/g)[0];
+
     if(firstline === prefix) {
         // there were no newlines within the limit so look for one of ?.!
         var regexp = /^[^!?.]*[.!?]{1}/;
@@ -492,12 +520,29 @@ tj.getDefaultTitle = function(jotText) {
         if(matching === null)
             return prefix
         else
-            return matching;
+            return matching[0];
     }
     else
         return firstline;
 }
 
+/* Returns an empty string if str has no tags, otherwise it purges str of negative tags */
+tj.sanitizeTags = function(tagstr) {
+    if(tagstr === undefined || tagstr.trim() === "") {
+        tagstr = "";
+    }
+    else {
+        var allTags = tagstr.split(",");
+        var okTags = [];
+        for(var i = 0; i < allTags.length; i++) {
+            if(allTags[i].trim().indexOf("-") != 0)
+                okTags.push(allTags[i]);
+        }
+        tagstr = okTags.join(", ");
+    }
+
+    return tagstr;
+}
 /* Adds a jot to the remote store.
 *
 *  jotText - the contents (value) of the jot composition area.
@@ -516,11 +561,10 @@ tj.innerAddJot = function(jotText, title, composeArea, titleArea) {
     var commonKey = new Date().getTime();
     var nbID = null;
     var tags = document.getElementById('add_tagsinput').value;
-    if(tags === undefined || tags === "")
-        tags = "";
-
-    //********** NEW MONGODB WAY ***********
-    // OK add to the mongodb table
+    tags = tj.sanitizeTags(tags);
+    // if(tags === undefined || tags.trim() === "")
+    //     tags = "";
+    //TODO: Warn and sanitize tags if there are any -tags : they can merge to sanitize
 
         var newJot = {
             "commonKeyTS":commonKey,
@@ -532,43 +576,65 @@ tj.innerAddJot = function(jotText, title, composeArea, titleArea) {
             "tagList":tags,
             "extra":"none",
             "isTodo":false,
-            "done":false
+            "done":false,
         };
 
+        //---- JUST TESTING SOMETHING: REMOVE THIS --
+        console.log("'raw' jot to POST:");
+        console.log(newJot);
+        console.log("stringified version:");
+        var stringifiedJot = JSON.stringify(newJot);
+        console.log(stringifiedJot);
+        console.log("parsed(stringified version) version:");
+        var parsed_stringifiedJot = JSON.parse(stringifiedJot);
+        console.log(parsed_stringifiedJot);
+        //-------------------------------------------
         // Add the jot
         $.ajax({
             type: 'POST',
-            data: newJot,
+            data: JSON.stringify(newJot),
+            contentType: "application/json",
             url: '/jots/addjot',
             dataType: 'JSON'
-        }).done(function( response ) {
+        }).done(function( response ) {    // the .success() method is deprecated as of JQuery 1.5
             
             // Check for successful (blank) response
             if(response.msg === '') {
                 composeArea.innerHTML = "";
                 titleArea.value = "";
                 tj.updateStatus(1);
+
+                var jotDiv = tj.renderJot(newJot);
+                var jotsContainer = document.getElementById("jotItems");
+                if(tj.filterObject.filterOrder === "newfirst")  {   // newest are currently shown first
+                    var first = jotsContainer.firstChild;
+                    jotsContainer.insertBefore(jotDiv, jotsContainer.firstChild);
+                }
+                else {  // oldest are currently shown first
+                    jotsContainer.appendChild(jotDiv);
+                }                
             }
-            else {
-                // alert the error message our service returned
-                alert('Error: ' + response.msg);
-            }
+            // else {
+            //     // alert the error message our service returned
+            //     alert('Error: ' + response.msg);
+            // }
+        }).fail(function(xhr, textStatus, errorThrown) {    // the .error() method is deprecated as of JQuery 1.5
+            //alert(xhr.responseText);
+            alert('Sorry: adding your jot failed.\n\nYour login has timed out.\n\nPlease try reloading the page and logging in again.');
         });
 
-        var jotDiv = tj.renderJot(newJot);
-        var jotsContainer = document.getElementById("jotItems");
-        if(tj.filterObject.filterOrder === "newfirst")  {   // newest are currently shown first
-            var first = jotsContainer.firstChild;
-            jotsContainer.insertBefore(jotDiv, jotsContainer.firstChild);
-        }
-        else {  // oldest are currently shown first
-            jotsContainer.appendChild(jotDiv);
-        }
+        // THIS MUST MOVE into done success handler above once we solve the no response bug if invisibly logged (timed) out...
+        // var jotDiv = tj.renderJot(newJot);
+        // var jotsContainer = document.getElementById("jotItems");
+        // if(tj.filterObject.filterOrder === "newfirst")  {   // newest are currently shown first
+        //     var first = jotsContainer.firstChild;
+        //     jotsContainer.insertBefore(jotDiv, jotsContainer.firstChild);
+        // }
+        // else {  // oldest are currently shown first
+        //     jotsContainer.appendChild(jotDiv);
+        // }
 };
 
-tj.insertNewJotHTML = function(jotDiv) {
-
-}
 /*
 *   Clears all jots on the page and re-renders them. Used on open, reload, order toggling or filtering. Generally not
 *   used just when a single jot is added or deleted or edited. In those cases we update the DOM directly.
@@ -587,42 +653,95 @@ tj.showAllJots = function(filterObject) {
             return;
         }
 
-        tj.reportFiltered();
+        //tj.reportFiltered();
 
         //TODO pagination...
-        var nextJotDiv;
-        var fragment = document.createDocumentFragment();
-        for(i = 0; i < jots.length; i++) {
-     	    nextJotDiv = tj.renderJot(jots[i]);
-            fragment.appendChild(nextJotDiv);      
+        if(jots.length > 1) {    // otherwise we just have the pagination header and no jots
+            var nextJotDiv;
+            var fragment = document.createDocumentFragment();
+            for(i = 1; i < jots.length; i++) {
+         	    nextJotDiv = tj.renderJot(jots[i]);
+                fragment.appendChild(nextJotDiv);      
+            }
+            jotsContainer.appendChild(fragment);
         }
-        jotsContainer.appendChild(fragment);
+
+        tj.filterObject.jotsFound = jots[0].jotsFound;    // number that matched the filter criteria
+        tj.filterObject.jotsReturned = jots[0].jotsReturned;
+        tj.filterObject.pageReturned = jots[0].pageReturned;
+        tj.filterObject.pagesTotal = jots[0].pagesTotal;
+        tj.filterObject.prevPageUrl = jots[0].prevPageUrl;
+        tj.filterObject.nextPageUrl = jots[0].nextPageUrl;
+        tj.filterObject.currentPageUrl = "/jots/jotlist/:" + String(jots[0].pageReturned) + "at" + String(tj.filterObject.jotsPerPage);
+
+        tj.reportFiltered();
+
     });      
 };
 
 /* Updates the status string on the page by count. */
-//TODO an argument could be made to do a full rerender here as the new or removed jot might or might
-//     not be included or excluded by the current filter state. However, that would also mean the user
-//     might not see the jot appear (even though it would be saved). So for now we just update the status
-//     line as if the jot matches the current filter criteria and let the user redo the filter if they care.
 tj.updateStatus = function(count) {
-    // //if(count !== 0) {
-    // if(count !== undefined) {
-    //     if(count == 0) {
-    //         tj.status.subset = 0;
-    //     }
-    //     else {
-            tj.status.total = tj.status.total + count;
-            tj.status.subset = tj.status.subset + count;
-    //     }
-    // }
+    tj.status.total = tj.status.total + count;
+    tj.status.subset = tj.status.subset + count;
 
     tj.reportFiltered();
 }
 
+/* Updates the filter status and pagination report area. */
 tj.reportFiltered = function() {
-    document.getElementById("statusarea").innerHTML = tj.getStatusReport(tj.filterObject);    
+    document.getElementById("statusarea").innerHTML = tj.getStatusReport(tj.filterObject);        
+    //document.getElementById("numberPerPage").innerHTML = String(tj.filterObject.jotsPerPage) + " jots per page";
+    document.getElementById("jotsPerPage").value = String(tj.filterObject.jotsPerPage);
+    document.getElementById("currentPageNumber").innerHTML = String(tj.filterObject.pageReturned);
+    document.getElementById("pagesTotal").innerHTML = String(tj.filterObject.pagesTotal);
 
+    // make the prev/next page active or not
+    var classname = (tj.filterObject.nextPageUrl.indexOf(":0at") == -1) ? "paginationLinks" : "paginationLinksInactive";
+    //document.getElementById("nextPageLink").style.display = state;
+    document.getElementById("nextPageLink").className = classname;
+
+    classname = (tj.filterObject.prevPageUrl.indexOf(":0at") == -1) ? "paginationLinks" : "paginationLinksInactive";
+    document.getElementById("prevPageLink").className = classname;
+    //document.getElementById("prevPostfix").style.display = state;
+}
+
+tj.changeJotsPerPage = function() {
+    var ppageStr = prompt("Desired number of jots per page: ", String(tj.filterObject.jotsPerPage));
+
+    // Validate answer
+    if(ppageStr === null)
+        return;
+    var count = Number(ppageStr);
+    if(isNaN(count) || count < 1)
+        return;
+
+    count = Math.floor(count);    // incase of non-integer entry
+
+    // update the filterObject and showAllJots
+    tj.filterObject.jotsPerPage = count;
+    tj.filterObject.currentPageUrl = "/jots/jotlist/:" + String(tj.filterObject.pageReturned) + "at" + String(count);
+    tj.showAllJots(tj.filterObject);
+
+    //ppageStr = String(count) + " jots per page";
+    //document.getElementById("numberPerPage").innerHTML = ppageStr;
+
+
+}
+
+tj.prevPage = function() {
+    if(document.getElementById("prevPageLink").className === "paginationLinksInactive")
+        return;
+
+    tj.filterObject.currentPageUrl = tj.filterObject.prevPageUrl;
+    tj.showAllJots(tj.filterObject);
+}
+
+tj.nextPage = function() {
+    if(document.getElementById("nextPageLink").className === "paginationLinksInactive")
+        return;
+    
+    tj.filterObject.currentPageUrl = tj.filterObject.nextPageUrl;
+    tj.showAllJots(tj.filterObject);
 }
 
 /* Returns a string describing the current list of jots shown and the filtering that led to that list. */
@@ -631,11 +750,25 @@ tj.getStatusReport = function(filterObject) {
     var tagparts = [];
     var hasNoTagsSearch = filterObject.filterOnTags && filterObject.filterTags.length === 0;
 
-    if(tj.status.total === tj.status.subset) {
-        pieces.push("all jots (" + tj.status.total.toString() + ")");
+    //if(tj.status.total === tj.status.subset) {
+//REDO
+    //121514 pieces.push(filterObject.jotsReturned.toString() + " of " + filterObject.jotsFound.toString());
+    var warnOutOfFilter = (tj.status.subset === filterObject.jotsReturned) ? "" : ("(*)");
+    pieces.push(tj.status.subset.toString() + warnOutOfFilter + " of " + filterObject.jotsFound.toString());        
+
+//REDO
+/*
+    if(filterObject.jotsReturned === filterObject.jotsFound) {
+        //pieces.push("all jots (" + tj.status.total.toString() + ")");
+        pieces.push("all jots (" + filterObject.jotsReturned.toString() + ")");
     }
-    else {    // create string rep of date and tag filters
-        pieces.push(tj.status.subset.toString() + " of " + tj.status.total.toString());        
+    else
+*/
+    if(filterObject.filterOnTags || filterObject.filterOnDate)
+    {    // create string rep of date and tag filters
+        //pieces.push(tj.status.subset.toString() + " of " + tj.status.total.toString());
+
+        //REDO pieces.push(filterObject.jotsReturned.toString() + " of " + filterObject.jotsFound.toString());        
         pieces.push("jots filtered by");
 
         if(filterObject.filterOnTags && (filterObject.filterOnTagsOr || filterObject.filterOnTagsAnd)) {
@@ -684,7 +817,6 @@ tj.getStatusReport = function(filterObject) {
         // report TAGLESS search
         if(hasNoTagsSearch) {
             pieces.push("TAGLESS");
-
         }
     }
 
@@ -699,59 +831,26 @@ tj.getStatusReport = function(filterObject) {
 */
 tj.getSortedRemoteJots = function(filterObject, callback) {
 
-    // GET all the jots, eventually we'll send a filter along with the GET to do the filtering on the server
-    //var remoteJots = nbx.Jots.all();
-    $.getJSON('/jots/jotlist', function(data) {
+    //var isPO = $.isPlainObject(filterObject);
+
+    // Validate date range before we go to the server
+    if((filterObject !== undefined) && filterObject.filterOnDate) {
+        filterObject.filterOnDate = tj.validateDateRange(tj.filterObject);
+    }
+
+    // This will return a header object with pagination information plus
+    // the jots corresponding to that information. For example if the header
+    // object key "pageback " has value 2 then the following jots are page 2.
+    // This header information will be stored locally in the filterObject and
+    // possibly modified for the next request.
+
+    //$.getJSON('/jots/jotlist', filterObject, function(data) {
+    $.getJSON(tj.filterObject.currentPageUrl, filterObject, function(data) {
         var remoteJots = data;
-        tj.status.total = remoteJots.length;
-        var flip = (tj.filterObject.filterOrder === "newfirst") ? -1 : 1;
+        tj.status.total = remoteJots.length - 1;    // the first object is the header, not a jot
+        tj.status.subset = remoteJots.length - 1;
 
-        if(filterObject !== undefined) {
-            console.log("getSortedRemoteJots filterObject is DEFINED");
-            var filteredJots = [];
-            var tagChecking = filterObject.filterOnTags;
-            //var dateChecking = false;    // in event that validateDateRange fails
-            //if(filterObject.filterOnDate && tj.validateDateRange(tj.filterObject))
-            //    dateChecking = true;
-            var dateChecking = filterObject.filterOnDate && tj.validateDateRange(tj.filterObject);
-
-            // If the user is filtering on both tags and date range we take this as an AND operation: a displayed
-            // jot must be in the date range AND must be tagged with the tags (Which might be AND or OR mode).
-            if(dateChecking || tagChecking) {
-                var dateHit;
-
-                for(var i = 0; i < remoteJots.length; i++) {
-                    var jot = remoteJots[i];
-                    if(dateChecking) {
-                        dateHit = tj.inDateRange(jot, filterObject);
-                        if(dateHit) {
-                            if(tagChecking) {
-                                if(tagMgr.containsTags(jot, filterObject))
-                                    filteredJots.push(jot);   // date and tag filtering
-                            }
-                            else    // only date filtering
-                                filteredJots.push(jot);
-                        }
-                    }
-                    else if(tagChecking && tagMgr.containsTags(jot, filterObject)) {
-                        filteredJots.push(jot);    // only tag filtering
-                    }
-                }
-                remoteJots = filteredJots;
-            }
-        }
-        ///else {
-        ///    console.log("getSortedRemoteJots filterObject is UNDefined");        
-        ///}
-
-        if(remoteJots.length > 0) {
-        	remoteJots.sort(function(a,b) {
-                return flip * (a.commonKeyTS - b.commonKeyTS);
-        	});
-        }
-
-        tj.status.subset = remoteJots.length;
-        ///return remoteJots;
+        // render
         callback(remoteJots);
     });
 }
@@ -765,17 +864,15 @@ tj.getSortedRemoteJots = function(filterObject, callback) {
 */
 tj.inDateRange = function(jot, filterObject) {
 
-    var target = jot.commonKeyTS;
-    var start = tj.filterObject.startMS;
-    var end = tj.filterObject.endMS;
+    var start = tj.filterObject.startMS, end = tj.filterObject.endMS;
 
-    // deal with having only one date
+    // Deal with having only one date.
     if(isNaN(start))
         start = end - (tj.MS_ONE_DAY - 1);
     else if(isNaN(end))
         end = start + (tj.MS_ONE_DAY - 1);
 
-    // Correct locally for reversed start and end without altering the filterObject fields.
+    // Correct for reversed start and end without altering the filterObject fields.
     if(start > end) {
         end = end - (tj.MS_ONE_DAY - 1);
         start = start + (tj.MS_ONE_DAY - 1);
@@ -784,30 +881,13 @@ tj.inDateRange = function(jot, filterObject) {
         end = t;
     }
 
-    // the real test but we allow reversed order of dates just to be friendly
-    if((target >= start) && (target <= end))
+    // finally, the real test
+    if((jot.commonKeyTS >= start) && (jot.commonKeyTS <= end))
         return true;
     else
         return false;
 }
 
-/*
-*  Examines the filter by tag settings and returns a boolean indicating their validity. For example if the
-*  user has selected filter by tags but has not selected any tags, this returns false which will lead to
-*  not checking a jot against tags (i.e. all jots will pass the has-tag checking). Basically the return value
-*  means go ahead and check against tags (true) or don't (false).
-*/
-// tj.validateTagFilterSettings = function(filterObject) {
-//
-//     // intention check
-//     if(!filterObject.filterOnTags)
-//         return false;
-//     // criteria checks
-//     if(!(filterObject.filterOnTagsOr || filterObject.filterOnTagsAnd))
-//         return false;
-//     if(filterObject.filterTags ===)
-
-// }
 /*
 *  Converts the date field strings to times in milleseconds, stores the values in the filterObject, and checks each
 *  for validity. At least one date must be valid. The order of the dates is not checked as we don't enforce it.
@@ -833,7 +913,7 @@ tj.validateDateRange = function(filterObject) {
 * Creates all the HTML elements for a single jot and sets them into a new div ready to be added to the
 * all-jots-div. The caller is reponsible for adding the retuned div to the jotItems div.
 *
-* row - An array containing the "column" entries for a particular jot.
+* row - A jot object
 */
 tj.renderJot = function(row) {	
 	// a div for each jot
@@ -875,7 +955,7 @@ tj.renderJot = function(row) {
     tagsinput.className = "tagsinput";
     tagsinput.disabled = true;
 
-	// a paragraph for the jot - simple for now: just one basic paragraph is all we handle
+	// a paragraph for the jot - simple for now
 	var pjot = document.createElement("p");
 	pjot.className = "jottext";
 
@@ -930,10 +1010,9 @@ tj.renderJot = function(row) {
     // add the jot id to the selectbox - we don't need a handler since we are just going
     // to grab all the selected ones for a batch operation, but we do need to know with jot
     // each one refers to
-    ///selectbox.value = row._id;
     selectbox.value = row.commonKeyTS;
 
-	// wire up Delete link handler and pass the inner deleteJot the key and jotdiv it will need
+	// wire up Delete link handler and pass the inner deleteJot the key and jotdiv it needs
 	dellink.addEventListener("click", function(e) {
 		var yesno = confirm("Are you sure you want to delete this jot?\n\nThis is not undoable.");
 		if(yesno) {
@@ -974,17 +1053,9 @@ tj.renderJot = function(row) {
 * editLink - The in-jot-div edit/save link (i.e. the pencil icon button) that received the click.
 * commonKey - The commonKeyTS value for the jot, which links the different store's particular instances of the same jot.
 * jotElement - The element containing the jot text (currently a p element, might become a div with sep p's in future...)
+* titleinput - The Title field element in the jot's header.
+* tagsinput - The Tags: field element in the jot's header.
 */
-//TODO now we need to actually save the edits and persist the changes.
-//this is tricky for two reasons
-//1. the content in the p we are setting to contenteditable has already been htmlized with <br> and <a> elements
-//   and that is what is stored in both our local indexedDB database and remotely. so first we need to take a look
-//   at what we can get from the p when they are done - do we get plaintext or html
-//
-//2. when we go to save it in the database we want to update the contents of a row, but do we htmlize it again. What
-//   I don't want to get into is going back and forth - i don't want to un-htmlize. Maybe this means we should only be
-//   persisting plain text and htmlizing it only for display on the page. but then how do we preserve creturns - i think
-//   the available DOM methods strip out the creturns... time to experiment.
 tj.editJot = function(editLink, commonKey, jotElement, titleinput, tagsinput) {
     var editimg = editLink.childNodes[0];
     if(tj.editing != null && editLink != tj.editing) {
@@ -992,19 +1063,11 @@ tj.editJot = function(editLink, commonKey, jotElement, titleinput, tagsinput) {
     	return;
     }
 
-    var newContent = jotElement.innerHTML;
-    //var newTitle = titlespan.innerHTML;
-    //var newTags = tagspara.innerHTML;
-    if(newTitle == "" || newTitle == undefined)
-    	newTitle = "untitled"
-
     if(editLink.title == "Edit this jot") {
         editLink.title = "Save the edit";
         editimg.src = ".\/images\/editdone-20h.png";
 	    jotElement.setAttribute("contenteditable", true);
 	    jotElement.className = "jottext_editing";
-	    //titlespan.setAttribute("contenteditable", true);
-	    //titlespan.className = "title_editing";
         titleinput.className = "titleinput_editing"
         titleinput.disabled = false;
 	    tagsinput.className = "tagsinput_editing";
@@ -1013,8 +1076,7 @@ tj.editJot = function(editLink, commonKey, jotElement, titleinput, tagsinput) {
     }
     else {    // time to save the edit
 
-        //var newTitle = $(".title_editing").text();
-        //var newTags = $(".tagspara_editing").text();
+        var newContent = jotElement.innerHTML;
         var newTitle = titleinput.value;
         var newTags = tagsinput.value;
 
@@ -1032,63 +1094,34 @@ tj.editJot = function(editLink, commonKey, jotElement, titleinput, tagsinput) {
 
         $.ajax({
             type: 'POST',
-            data: newJot,
+            data: JSON.stringify(newJot),
+            contentType: "application/json",
             url: '/jots/editjot',
             dataType: 'JSON'
         }).done(function( response ) {
             
             // Check for successful (blank) response
             if(response.msg === '') {
-                // // Clear the form inputs
-                // $('#addUser fieldset input').val('');
-
-                // // Update the table
-                // populateTable();
+                editLink.title = "Edit this jot";
+                editimg.src = ".\/images\/pen-20h.png";
+                jotElement.setAttribute("contenteditable", false);
+                jotElement.className = "jottext";
+                titleinput.disabled = true;
+                titleinput.className = "titleinput";
+                tagsinput.disabled = true;
+                tagsinput.className = "tagsinput";
+                tj.editing = null;
             }
             else {
-                // If something goes wrong, alert the error messag that our service returned
-                alert('Error: ' + response.msg);
+                // If something goes wrong, alert the error message that our service returned
+                // TODO can this ever be hit now
+                alert('Error saving edit: ' + response.msg);
             }
+        }).fail(function(xhr, textStatus, errorThrown) {    // the .error() method is deprecated as of JQuery 1.5
+            //alert(xhr.responseText);
+            alert('Sorry: editing your jot failed.\n\nYour login has timed out.\n\nPlease try reloading the page and logging in again.');
         });
-
-	    // if((tj.STORE_MASK & tj.STORE_DROPBOX) == tj.STORE_DROPBOX) {
-	    //     console.log("editJot: updating Dropbox.");
-
-	    //     var nbJot = nbx.Jots.findByAttribute("commonKeyTS", commonKey);
-	    //     nbJot.jot = newContent;
-	    //     nbJot.title = newTitle;
-	    //     nbJot.tagList = newTags;
-	    //     nbJot.save();
-	    //     nbx.Jots.sync_all(function() {console.log("tj.editJot nbx.Jots.sync_all() callback called.")});
-	    // }
  
-        //TODO should we move this into the requestUpdate.onsuccess?
-        //AND if there was an indexedDB error we should probably revert the page text...?
-        editLink.title = "Edit this jot";
-        editimg.src = ".\/images\/pen-20h.png";
-	    jotElement.setAttribute("contenteditable", false);
-        jotElement.className = "jottext";
-	    //titlespan.setAttribute("contenteditable", false);
- 	    //titlespan.className = "title";
-        titleinput.disabled = true;
-        titleinput.className = "titleinput";
-	    tagsinput.disabled = true;
- 	    tagsinput.className = "tagsinput";
-        tj.editing = null;
-        //var textcontent = jotElement.textContent;    // works on FF, Chrome NOT IE - looses markup AND NEWLINES! (which are markup really)
-        //var wholecontent = jotElement.wholeText;
-        //var innerttextcontent = jotElement.innerText;// works on Chrome, IE NOT FF - looses <a> markup and converts <b> to crlf apparently
-        //var htmlcontent = jotElement.innerHTML;      // works on IE, FF, Chrome - retains the htmlization
-        //var datacontent = jotElement.data;
-        //var x = 3;
-
-        // so we have a problem indeed as Firefox does not support inner text which is a bummer as what it does is return
-        // basically our prehtmlized text, which we could then easily rehtmlize after the editing is done. ugh...
-        // SINCE the user can't enter markup anyway (we'd need a whole editor for that) and them entering normal text without
-        // new carriage returns will still come across in the innerHTML maybe we should go with that for now. We really need
-        // a full editor in place when a jot goes editable...
-        // Actually, adding newlines causes the innerHTML to show <div><br></div> type stuff and similarly for spaces they
-        // become <div>&nbsp;... not too suprising really
     }
 };
 
@@ -1109,10 +1142,11 @@ tj.deleteJot = function(commonKey, jotDiv) {
         
         // Check for successful (blank) response and remove the corresponding div
         if(response.msg === '') {
-            if(jotDiv !== undefined) {
-                tj.removeJotDiv(jotDiv);
-                tj.updateStatus(-1);
-            }
+            tj.showFilteredJots();
+            // if(jotDiv !== undefined) {
+            //     tj.removeJotDiv(jotDiv);
+            //     tj.updateStatus(-1);
+            // }
         }
         else {
             alert('Error: ' + response.msg);
@@ -1140,7 +1174,7 @@ tj.deleteJots = function() {
             tj.deleteJot(selectedJots[i]);
         }
 
-        tj.showFilteredJots();
+        ///tj.showFilteredJots();
     }
 }
 
@@ -1305,22 +1339,7 @@ tj.showFilteredJots = function() {
     else {  // record radio buttons state separately so user can turn tag filter on/off while keeping or/and state
         tj.filterObject.filterOnTagsOr = document.getElementById("filter_by_tags_or").checked;
         tj.filterObject.filterOnTagsAnd = document.getElementById("filter_by_tags_and").checked;
-        // if(document.getElementById("filter_by_tags_or").checked) {
-        //     //tj.filterObject.filterMode |= tj.FILTERMODE_TAGS_OR;       
-        //     tj.filterObject.filterOnTagsOr = true;     
-        // }
-        // else {
-        //     //tj.filterObject.filterMode &= ~(tj.FILTERMODE_TAGS_OR);       
-        //     tj.filterObject.filterOnTagsOr = false;       
-        // }
-        // if(document.getElementById("filter_by_tags_and").checked) {
-        //     //tj.filterObject.filterMode |= tj.FILTERMODE_TAGS_AND;       
-        //     tj.filterObject.filterOnTagsAnd = true;       
-        // }
-        // else {
-        //     //tj.filterObject.filterMode &= ~(tj.FILTERMODE_TAGS_AND);       
-        //     tj.filterObject.filterOnTagsAnd = false;       
-        // }
+
         tj.showAllJots(tj.filterObject);
     }
 
@@ -1331,7 +1350,7 @@ tj.showFilteredJots = function() {
 /* Returns if a jot meets the current tag filter criteria, false otherwise. */
 tagMgr.containsTags = function(jot, filterObject) {
 
-    // Allow a search for untagged jots, meaning if there are no tags selected
+    // TODO Allow a search for untagged jots, meaning if there are no tags selected
     // to check jots against we will return true only for untagged jots
 
     if(filterObject.filterTags === null || filterObject.filterTags.length === 0) {
@@ -1369,7 +1388,7 @@ tagMgr.mergeStagedTags = function() {
     console.log("mergeStagedTags() called");
     var tagsField = document.getElementById("add_tagsinput");
     var tagString = tagsField.value;
-    tagMgr.innerMerge(tagString);
+    tagMgr.innerMerge(tagString, tagsField);
 }
 
 /*
@@ -1390,8 +1409,8 @@ tagMgr.mergeStagedTags = function() {
 *       tags, and content editing). Alternatively the removed tag could be re-added to the master list and would
 *       thus be an available filter target once again.
 */           
-tagMgr.innerMerge = function(mergeList) {
-    if(mergeList === undefined || mergeList == null || mergeList === "")
+tagMgr.innerMerge = function(mergeList, tagsElement) {
+    if(mergeList === undefined || mergeList === null || mergeList === "")
         return;
 
     //********** NEW Tag STUFF FOR MONGODB ***********
@@ -1468,11 +1487,9 @@ tagMgr.innerMerge = function(mergeList) {
             var temp = response;
             // Check for successful (blank) response
             if(response.msg === '') {
-                // // Clear the form inputs
-                // $('#addUser fieldset input').val('');
 
-                // // Update the table
-                // populateTable();
+                // Repopulate the Tags field, sans tags being removed
+                tagsElement.value = mergeAdd.join(", ");
             }
             else {
                 // If something goes wrong, alert the error messag that our service returned
@@ -1621,37 +1638,6 @@ tj.htmlizeText = function(text) {
 		    htmlized = htmlized + pieces[i] + "<br />";
 	}
 	return(htmlized);
-}
-
-/* Persists the user's preferred remote storage service. A stub for now as we only support Dropbox. */
-tj.settingsSet = function(value) {
-    if(value === 1) {
-
-        // which service? (TODO support more possibilities, starting with local only)
-        if(document.getElementById("remoteDropbox").checked) {
-            //tj.filterObject.filterMode |= tj.FILTERMODE_TAGS_OR;       
-            tj.service = tj.SERVICE_DROPBOX;
-            ///tj.key = document.getElementById("DBKey").value;
-            ///tj.secret = document.getElementById("DBSecret").value;
-            ///if((tj.key !== nbx.sync_object.Dropbox.key) || (tj.secret !== nbx.sync_object.Dropbox.secret)) {
-            ///    nbx.sync_object.Dropbox.key = tj.key;
-            ///    nbx.sync_object.Dropbox.secret = tj.secret;
-            ///    ///nimbus_init();   // attempt connection
-            ///    nbx.open();
-            ///}
-        }
-        else if(document.getElementById("remoteGoogle").checked) {
-            tj.service = tj.SERVICE_GOOGLE;     
-        }
-        else {
-            tj.service = tj.SERVICE_UNKNOWN;     
-        }
-
-        // attempt connection
-
-    }
-
-    $("#settingsDialog").dialog( "close" );
 }
 
 // Let's get started

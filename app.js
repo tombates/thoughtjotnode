@@ -14,6 +14,7 @@ var routes = require('./routes/index');
 var users = require('./routes/users');
 var jots = require('./routes/jots');
 var tags = require('./routes/tags');
+//var chromebug = require('./routes/chromebug');   // for investigating chrome issue with contenteditable div
 
 var app = express();
 
@@ -32,7 +33,8 @@ app.use(stormpath.init(app, {
     apiKeyId: '12E8R9E2R3C1CEF7AQIIMY04K',
     apiKeySecret: 'RytK1PXMIq+Yq07N6f79OxTLUdINSEZhZ0ER0F/+neI',
     application: 'https://api.stormpath.com/v1/applications/1Hn0y3HWQEYH3gS34O2iSc',
-    secretKey: 'jdygewinLjfLLIDE78jgneSDFHJG290jwelo25'
+    secretKey: 'jdygewinLjfLLIDE78jgneSDFHJG290jwelo25',
+    sessionDuration: 1000 * 60 * 60 * 2, // Make sessions expire after 2 hours. Seems to have no effect at all.
 }));
 // Make our db accessible to our router
 app.use(function(req, res, next) {
@@ -44,6 +46,7 @@ app.use('/', routes);
 app.use('/users', users);
 app.use('/jots', jots);
 app.use('/tags', tags);
+//app.use('/chromebug', chromebug);
 //app.use('/services', services);
 //app.use('/secrets', secrets);
 

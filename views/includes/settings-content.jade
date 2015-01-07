@@ -1,0 +1,12 @@
+  // FUTURE This is the Settings dialog content, which shows only when user clicks the tools button:Settings link
+  #settingsDialog(title='Thought Jot Settings')
+    h4 Choose a remote storage service
+    input#remoteDropbox(type='radio', name='remotestorage', value='dropbox', checked='true')
+    | Use Dropbox
+    br
+    input#remoteGoogle(type='radio', name='remotestorage', value='google')
+    | Use Google Drive
+    br
+    br
+    input(type='button', value='Save', onclick='tj.settingsSet(1); return false;')
+    input(type='button', value='Cancel', onclick='tj.settingsSet(0); return false;')

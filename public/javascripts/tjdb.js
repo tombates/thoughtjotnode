@@ -1,7 +1,7 @@
 /*
-* Core Thought Jot functionality file. 
+* Thought Jot client side js 
 *
-* Thought Jot itself uses local storage (indexedDB) to store user filter state information so that when the user
+* Thought Jot currently uses local storage (IndexedDB) to store user filter state information so that when the user
 * returns (to the same browser on the same device) they will again see only the jots matching their previous filter
 * criteria.
 * 
@@ -9,17 +9,13 @@
 * of Chrome or IE. This means different jots could be entered via different browsers and/or devices, and unless a refresh
 * was done with no filtering jots entered via other browsers/devices might not show up.
 *
-* It should be noted that indexedDB is not available in private browsing mode (Incognito in Chrome) and this will disable
+* Additionally, indexedDB is not available in private browsing mode (Incognito in Chrome) and this will disable
 * filter state saving. In other words the current version cannot work in private browsing mode.
 *
 */
 
-// Let's encapsulate our stuff in an object to reduce global namespace pollution.
+// Encapsulate our stuff in an object to reduce global namespace pollution.
 var tj = {};
-tj.STORE_DROPBOX = 2;
-tj.STORE_GDRIVE = 4;
-tj.STORE_BITTORRENT_SYNC = 8;
-tj.STORE_MASK = tj.STORE_DROPBOX;    // only storage mode currently supported
 tj.MS_ONE_DAY = 86400000;            // milliseconds in one day = 24 * 60 * 60 * 1000
 tj.DEFAULT_TITLE_LIMIT = 50;
 
@@ -28,11 +24,6 @@ tj.indexedDB = {};
 tj.filterObject = {};
 tj.indexedDB.db = null;
 tj.indexedDB.IDB_SCHEMA_VERSION = 10;
-
-tj.SERVICE_UNKNOWN = -1;
-tj.SERVICE_DROPBOX = 1;
-tj.SERVICE_GOOGLE = 2;
-tj.service = tj.SERVICE_DROPBOX;
 
 tj.status = {};   // holds the status area information for status string building
 tj.status.prefix = "Showing ";
@@ -87,7 +78,6 @@ tj.indexedDB.open = function() {
                      "\n\nSafari does not have full IndexedDB support. If you are on a Mac please try Chrome or Firefox.");
     }
 
-    //TODO move this to bottom of function and test
     tj.bindControls();
 
     //
@@ -98,7 +88,6 @@ tj.indexedDB.open = function() {
 
     openRequest.onupgradeneeded = function(e) {
 		var db = e.target.result;
-		//console.log("tj.indexedDB.open: in request.onupgradeneeded() callback");
 
 		// A versionchange transaction is started automatically.
 		e.target.transaction.onerror = tj.indexedDB.onerror;
@@ -110,12 +99,11 @@ tj.indexedDB.open = function() {
 	
     // restore the saved session filter state data, if any
 	openRequest.onsuccess = function(e) {
-		//console.log("retrieving filter state: in request.onsuccess() callback");
 		tj.indexedDB.db = e.target.result;        
 
         var trans = tj.indexedDB.db.transaction(["SessionState"]);
         trans.oncomplete = function(e) {
-            console.log("retrieving filter state: trans.oncomplete() called");
+            //console.log("retrieving filter state: trans.oncomplete() called");
         }
         trans.onerror = function(e) {
             console.log("retrieving filter state: trans.onerror() called");
@@ -124,7 +112,6 @@ tj.indexedDB.open = function() {
 
         var store = trans.objectStore("SessionState");
         var fsRequest = store.get(userData.userID);
-        console.log("tj.indexedDB.open retrieved IDB userData.userID: " + userData.userID);
         
         fsRequest.onsuccess = function(e) {
             if(fsRequest.result == undefined) {
@@ -191,17 +178,19 @@ tj.bindControls = function() {
             switch (String.fromCharCode(event.which).toLowerCase()) {
             case 's':
                 event.preventDefault();
-                console.log('ctrl-s');
-                // We don't use jQuery trigger because we don't have a sep id for each edit link so we can't
-                // use a jQuery selector to get at the right link. But we already have the link itself in hand in
-                // tj.editing so we use a more direct method. But this has its own issues as FF does not
+
+                // if there is a jot being edited, simulate user clicking check (save) button in the jot
+
+                // Not using jQuery trigger because we don't have a sep id for each edit link so we can't
+                // use a jQuery selector to get at the right link. But we already have the link itself in hand
+                // in tj.editing so we use a more direct method. But this has its own issues as FF does not
                 // support click, and IE does not fully support CustomEvent which is the supposed
                 // replacement for the deprecated createEvent WHICH DOES WORK in IE, FF and Chrome. Ugh.
 
-                // if there is a jot being edited, simulate user clicking check (save) button in the jot
                 //if(tj.editing !== null) {
                 //    tj.editing.click();  // works in Chrome and IE but not FF
                 //}
+
                 // But this works in IE, FF and Chrome:
                 var evt = document.createEvent('MouseEvents');   // ugh createEvent is deprecated, see above
                 evt.initEvent(
@@ -238,7 +227,6 @@ tj.bindControls = function() {
     });
  
     $( "#helpOpener" ).click(function() {
-      console.log("in helpOpen click handler");
       $( "#helpDialog" ).dialog( "option", "width", 800 );
       $( "#helpDialog" ).dialog( "open" );
     });
@@ -284,7 +272,7 @@ tj.getSelectedJots = function() {
     var selectedJots = $('input:checkbox:checked.selectjot').map(function() {
         return this.value;    // the commonKeyTS for the jot
     }).get();
-    console.log(selectedJots);
+
     return selectedJots;
 }
 
@@ -765,7 +753,7 @@ tj.renderJot = function(row) {
 
     // set the display toggle handler
     title_centerdiv.addEventListener("click", function(e){
-        console.log("Someone, or something, clicked on me!");
+
         //Note: we do nothing to pjot.classname if it is jottext_editing
         if(pjot.className == "jottext")
             pjot.className = "jottext_collapsed";
@@ -1035,7 +1023,7 @@ tj.indexedDB.persistFilterControlsState = function(filterObject) {
     var trans = tj.indexedDB.db.transaction(["SessionState"], "readwrite");
 
     trans.oncomplete = function(e) {
-        console.log("storing session state trans.oncomplete() called");
+        //console.log("storing session state trans.oncomplete() called");
     }
 
     trans.onerror = function(e) {
@@ -1150,9 +1138,9 @@ tagMgr.containsTags = function(jot, filterObject) {
 
 /* A wrapper for tagMgr.innerMerge. */
 tagMgr.mergeStagedTags = function() {
-    console.log("mergeStagedTags() called");
     var tagsField = document.getElementById("add_tagsinput");
     var tagString = tagsField.value;
+
     tagMgr.innerMerge(tagString, tagsField);
 }
 

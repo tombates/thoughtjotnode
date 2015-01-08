@@ -12,8 +12,8 @@ block content
         ul.sub-menu
           li
             a#helpOpener.topic &nbsp;&nbsp;&loz;&nbsp;&nbsp;Using Thought Jot
-          li
-            a#importJots.topic(title='Import JSON jots') &nbsp;&nbsp;&loz;&nbsp;&nbsp;Import
+          //li
+          //  a#importJots.topic(title='Import JSON jots') &nbsp;&nbsp;&loz;&nbsp;&nbsp;Import
           li
             a#deleteJots.topic &nbsp;&nbsp;&loz;&nbsp;&nbsp;Delete selected jots
           li
@@ -51,20 +51,15 @@ block content
           input#applyfilters_btn(type='button', onclick='tj.showFilteredJots()', value='Filter', title='Apply the filter options.')
         input#stagetags_btn(type='button', onclick='tagMgr.stageTags(); return false;', value='Stage', title='Move selected tags to the Tags field below for attaching to the current jot.')
         input#mergetags_btn(type='button', onclick='tagMgr.mergeStagedTags(); return false;', value='Merge', title="Add or remove tags from the selector list above.\nTags preceeded with '-' (minus) will be removed.")
-        //input#stagetags_btn(type='button', onclick='tagMgr.stageTags(); return false;', title='Move selected tags to the Tags field below for attaching to the current jot.') Stage tgs
       .jotaddbtn
         input.addjot_img(type='button', value='', onclick='tj.addJot(); return false;' title='Add this jot')
         | &nbsp;&nbsp;&nbsp;Title&nbsp;
         input#add_titleinput(type='text', placeholder='untitled', maxlength='200')
         | &nbsp;&nbsp;&nbsp;Tags&nbsp;
         input#add_tagsinput(type='text', placeholder='none', maxlength='200', title='Separate tags with commas')
-        //input#mergetags_btn(type='button', onclick='tagMgr.mergeStagedTags(); return false;', value='  Merge', title="Add or remove tags from the selector list above.\nTags preceeded with '-' (minus) will be removed.")
     #jotcontrols
       input#toggleOrder(type='button', onclick='tj.toggleOrdering(); return false;', title='Press to show oldest jots first.')
-      // input type="button" id="paginate_prev" onClick="tj.paginator(0); return false;" title="Press to see previous ten jots."/
-      // input type="button" id="paginate_next" onClick="tj.paginator(1); return false;" title="Press to see next ten jots."/
       span#statusarea Status
-      //p#selectall
       input#checkall(type='checkbox', title='Select or deselect all visible jots.')
       span#paginator
         a#prevPageLink.paginationLinks(onclick = 'tj.prevPage(); return false;') prev
@@ -77,7 +72,6 @@ block content
         a#nextPageLink.paginationLinks(onclick = 'tj.nextPage(); return false;') next
         span &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Jots per page
         input#jotsPerPage(type='text', maxlength='3')
-        //a#numberPerPage.paginationLinks(onclick = 'tj.changeJotsPerPage(); return false;') c jots per page
     #jotItems
       // Each jot gets its own div inside the jotItems div.
   // end container div

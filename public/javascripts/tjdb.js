@@ -1,38 +1,18 @@
 /*
-* Core Thought Jot functionality file. The model and controller code really, mediating between the
-* user actions in the html presentation view and the logic of persiting to remote stores.
-*
-* This file contains code for persisting information, conceptually rows of a table where each
-* row represents a "jot" of text. These are displayed with a time stamp and edit and delete controls in the html.
-* Each jot also has a title and a tags field. The jot, title and tags are editable. Only a single jot can be
-* in the editable state at any given time.
-*
-* When a jot is created it is persisted remotely on Dropbox or Google Drive through the use of the
-* NimbusBase (www.nimbusbase.com) API, which is a javascript package.
+* Core Thought Jot functionality file. 
 *
 * Thought Jot itself uses local storage (indexedDB) to store user filter state information so that when the user
 * returns (to the same browser on the same device) they will again see only the jots matching their previous filter
 * criteria.
 * 
-* NimbusBase also uses the indexedDB feature of the browser separately from Thought Jot, but clears that
-* data when the session ends, leaving only the remote version.
-
 * It must be noted that indexedDB storage is browser specific. For example, Firefox has no access to the indexedDB store
 * of Chrome or IE. This means different jots could be entered via different browsers and/or devices, and unless a refresh
 * was done with no filtering jots entered via other browsers/devices might not show up.
 *
 * It should be noted that indexedDB is not available in private browsing mode (Incognito in Chrome) and this will disable
-* filter state saving and NimbusBase. In other words the current version cannot work in private browsing mode.
-*
-* IS THIS EVEN TRUE: EXPAND ON THIS ISSUE OR DELETE.The application can be run either from a localhost rather than from a web server. However any jot content that is url
-* based such as an image added to a jot, or a string representing a url (which Though Jot 'htlmizes' to make it a real link)
-* will not be available.
+* filter state saving. In other words the current version cannot work in private browsing mode.
 *
 */
-
-//TODO: a local only user option, requiring a new column if they want to mix modes so that local only jots are neither
-//      seen by NimbusBase or ever pushed to a remote store.
-//TODO: option for storing stuff on either (not both) GDrive and Dropbox
 
 // Let's encapsulate our stuff in an object to reduce global namespace pollution.
 var tj = {};
@@ -73,6 +53,7 @@ tj.filterObject.endDate = "";
 tj.filterObject.startMS = NaN;
 tj.filterObject.endMS = NaN;
 tj.filterObject.filterOrder = "newfirst"; // default ordering
+
 // the pagination section: mirrors the header object in the array returned by the /jots/jotlist route
 tj.filterObject.jotsFound = 1;
 tj.filterObject.jotsReturned = 1;
@@ -117,7 +98,8 @@ tj.indexedDB.open = function() {
 
     openRequest.onupgradeneeded = function(e) {
 		var db = e.target.result;
-		console.log("tj.indexedDB.open: in request.onupgradeneeded() callback");
+		//console.log("tj.indexedDB.open: in request.onupgradeneeded() callback");
+
 		// A versionchange transaction is started automatically.
 		e.target.transaction.onerror = tj.indexedDB.onerror;
 		if(db.objectStoreNames.contains("SessionState")) {
@@ -128,7 +110,7 @@ tj.indexedDB.open = function() {
 	
     // restore the saved session filter state data, if any
 	openRequest.onsuccess = function(e) {
-		console.log("retrieving filter state: in request.onsuccess() callback");
+		//console.log("retrieving filter state: in request.onsuccess() callback");
 		tj.indexedDB.db = e.target.result;        
 
         var trans = tj.indexedDB.db.transaction(["SessionState"]);
@@ -186,7 +168,7 @@ tj.indexedDB.open = function() {
 */
 tj.restoreFilteredState = function() {
 
-    // avoid some weird browser caching of state (yes you Firefox...)
+    // avoid browser's weird caching of state (yes you Firefox...)
     tj.filtersClear();
 
     // get all of this user's tags, set the filtering, and show the jots
@@ -203,7 +185,7 @@ tj.restoreFilteredState = function() {
 }
 
 tj.bindControls = function() {
-    // bind CTL-s for saving edits to a jot - would also work to use window.addEventListener( instead w/o jQuery)
+    // bind CTL-s for saving edits to a jot
     $(window).bind('keydown', function(event) {
         if (event.ctrlKey || event.metaKey) {
             switch (String.fromCharCode(event.which).toLowerCase()) {
@@ -213,7 +195,7 @@ tj.bindControls = function() {
                 // We don't use jQuery trigger because we don't have a sep id for each edit link so we can't
                 // use a jQuery selector to get at the right link. But we already have the link itself in hand in
                 // tj.editing so we use a more direct method. But this has its own issues as FF does not
-                // support click, and IE apparently does not fully support CustomEvent which is the supposed
+                // support click, and IE does not fully support CustomEvent which is the supposed
                 // replacement for the deprecated createEvent WHICH DOES WORK in IE, FF and Chrome. Ugh.
 
                 // if there is a jot being edited, simulate user clicking check (save) button in the jot
@@ -223,8 +205,8 @@ tj.bindControls = function() {
                 // But this works in IE, FF and Chrome:
                 var evt = document.createEvent('MouseEvents');   // ugh createEvent is deprecated, see above
                 evt.initEvent(
-                    'click',   // event type
-                    false,      // can bubble?
+                    'click',
+                    false,     // can bubble?
                     true       // cancelable?
                 );
                 tj.editing.dispatchEvent(evt);
@@ -263,7 +245,7 @@ tj.bindControls = function() {
 
     // bind the user menu items
     $('#importJots').click(tj.importJots);
-    $('#deleteJots').click(tj.deleteJots);    //TODO take over single jot delete as well when working
+    $('#deleteJots').click(tj.deleteJots);
 
     // the jots per page input
     $('#jotsPerPage').keyup(function(e) {
@@ -294,168 +276,6 @@ tj.bindControls = function() {
 tj.replaceAll = function(find, replace, str) {
     return str.replace(new RegExp(find, 'g'), replace);
 }
-/*
-*  Attempts to import stringified JSON entered into the compostion area as jots, in the form they
-*  they are emailed by emailJots(). If the entered content is fully contained in either
-*  {}, implying a single jot, or in [], implying multiple jots and thus further comma separted
-*  {} blocks inside the [], the the {} blocks will each be posted as a jot. The {} are assumed
-*  to be flat and contain the standard json jot keys of commonKeyTS, title, jot, and tagList
-*  as well as possibly time, modTime, extra, isTodo, and done keys. No other keys will be used
-*  (persisted to the MongoDB store) even if a {} block contains other keys.
-*
-*  Still a work in progress as the fact that we paste the textual version of the jot into the
-*  content editable div of the compose area means that much translation to HTML character entities
-*  like space->&npsp; , < -> &lt;, etc. happens on the getting of the innerHTML and there are no
-*  good alternatives as innerText is not standard (and still encodes) and .value can't be used
-*  because we are no longer using a textarea as we can't paste images into it. So for now importing
-*  more than one jot at a time requires care especially to not introduce spaces or cr/lf in addtion
-*  to the required comma between {} contained indivdual jots, not any whitespace between [] and {}.
-*
-*  Additional issues now that the whole-trip is working - sending out as email (if you've turned off
-*  google security on the account I'm sending through) and being received. But when I go to paste I
-*  find that google has inserted a whole bunch of <wbr> crap into the text of the email, while Windows
-*  Live mail has embedded the real stuff inside divs!: <div>[the only stuff there should be]</div><div><br></div>
-*
-*  I'm going to kludge this through for now just so I can recover all my old jots from the NimbusBase days
-*  but clearly the right thing to do is to avoid email entirely and go to a method where you can send
-*  stuff to another Thought Jot user and they'll get a notification that they've been sent some jots and would
-*  you like to view them and possibly ingest them into your jots. This of course doesn't allow for putting text
-*  JSON form of the jots as stored into the compose area because they'd never see that - it's just that I've got
-*  all the old ones from NB days as files in dropbox which I'm trying to recover...Ugh. What a slog this export
-*  import stuff has become.
-*/
-//TODO move to another file that can be unincluded when you're done getting your old ones back onto deployed version
-tj.importJots = function() {
-    console.log("in importJots()");
-    var composeArea = document.getElementById('jot_composer');   // a div, no longer a textarea
-    var titleArea = document.getElementById('add_titleinput');
-    var jotContents = composeArea.innerHTML.trim();
-
-    // Check for acceptable format
-    //jotContents = jotContents.trim();
-
-    // first kludge: sanitize google's insertion of <wbr> crap
-    jotContents = tj.replaceAll("<wbr>", "", jotContents);
-    // actually that's not enough because google also inserts cr/lf crap throughout - thanks so much google
-    jotContents = jotContents.replace(/(\r\n|\n|\r)/gm, "");
-    jotContents = jotContents.replace(/%5C/gm, "\\");
-    // eliminate anything up to first [ or { char and same on end to elim WLMail <div> garbage
-    //Oh holy fuck - google is inserting even more bullshit than this so google as the recipient is a no-go
-    //I'll just abandon this route - haha - after all this fucking work
-    jotContents = tj.trimKludge(jotContents);
-
-    // Obviously in retrospect this "simple emailing" solution is no solution at all, just a can of worms
-    // depending on the receiving email program and must be replaced once I've gotten my old jots back...
-    // Lesson learned: never consider email an import/export solution even for "simple" stuff.
-
-    if(isContainedBy("{", "}", jotContents)) {
-        jotContents = "[" + jotContents + "]";
-    }
-    else if(!(isContainedBy("[", "]", jotContents))) {
-        alert("Import text not formatted as JSON. Contain jots within []. The import failed.");
-        return;
-    }
-
-    // .innerHTML returns < & > turned into character entities but we need to persist <>
-    // or inserted HTML, images, etc. will not work.
-    jotContents = tj.replaceAll("&lt;", "<", jotContents); //.replace("&amp;&gt;", ">");
-    jotContents = tj.replaceAll("&gt;", ">", jotContents); //.replace("&amp;&gt;", ">");
-    try {
-        var jotsJSON = JSON.parse(jotContents);
-    } catch(exception) {
-        alert("Import JSON.parse failed. Try Eliminating white space between separate jots.")
-        return;
-    }
-
-    // now we should have an array with one or more jots in it
-
-    jotsJSON.forEach(function(jot) {    //TODO convert to reg. loop if we ever care about < IE8
-
-        $.ajax({
-            type: 'POST',
-            //data: jotJSON,
-            data: jot,
-            url: '/jots/addjot',
-            dataType: 'JSON'
-        }).done(function( response ) {
-            
-            // Check for successful (blank) response
-            if(response.msg === '') {
-                //TODO this is bs if we are doing multiple jots, refactor to only do on last one of set
-                composeArea.innerHTML = "";
-                titleArea.value = "";
-                tj.updateStatus(1);
-                tj.showAllJots(tj.filterObject);
-            }
-            else {
-                // alert the error message our service returned
-                alert('Error: ' + response.msg);
-            }
-        });
-
-    });
-
-}
-
-//TODO move along with importJots
-/* Returns a string starting/ending with [] or {} but embedded in other stuff sans the other stuff. */
-tj.trimKludge = function(str) {
-
-    var expectedEnd = "]";
-    var realStart = str.indexOf("[");
-    if(realStart === -1) {
-        expectedEnd = "}";
-        realStart = str.indexOf("{");    // better have one or the other.
-    }
-
-    var i = str.length;
-    while((i >= 0) && (str.charAt(i-1) != expectedEnd)) {
-        i--;
-    }
-
-    return (i < 0) ? str : str.substring(realStart, i);
-}
-
-//TODO move to utils
-isContainedBy = function(startsWith, endsWith, str) {
-    if(startsWith.length + endsWith.length > str.length)
-        return false;
-    if(str.indexOf(startsWith) === 0 && str.substr(str.length - endsWith.length, endsWith.length) === endsWith)
-        return true;
-
-    return false;
-}
-
-/*
-*  Emails selected jots as stringified JSON, which can be imported.
-*/
-//TODO move along with importJots
-tj.emailJots = function() {
-    var emailAddresses = prompt("Please enter recipient(s) email addresses, separated by commas.");
-    if(emailAddresses != null) {
-
-    } else {
-        alert("At least one email recipient is required.")
-    }
-
-    var selectedJots = tj.getSelectedJots();
-
-    // create an object to send to the server telling it which jots to email, and to whom
-    var exportData = {"to": emailAddresses};
-
-    for(var i = 0; i < selectedJots.length; i++) {
-        exportData["jot" + i] = selectedJots[i];
-    }
-
-    // POST this to our email (to me for now) route, then we'll need a to whom interface view of some kind
-    $.ajax({
-        type: 'POST',
-        //data: {text: "let's do some emailing..."},
-        data: exportData,
-        url: '/services/sendto',
-        dataType: 'JSON'
-    });
-}
 
 /*
 *  Returns an array containing the commonKeyTS value for all the selected jots.
@@ -475,7 +295,6 @@ tj.getSelectedJots = function() {
 tj.addJot = function() {
     var jotComposeArea = document.getElementById('jot_composer');   // a div, no longer a textarea
     var jotContents = jotComposeArea.innerHTML.trim();
-    //var jotContents = jotComposeArea.value;
     var titleField = document.getElementById('add_titleinput');
     var title = titleField.value;
 
@@ -507,7 +326,7 @@ tj.getDefaultTitle = function(jotText) {
     //   And we are forced to float the compose jot div left or Chrome does it's very weird
     //   move-the-div-down bug upon a newline being inserted into existing text...
     //   In addition, IE does the first <p> wrapping to the text before the first newline!
-    //   This means our regex will our split will have the first element blank instead of it
+    //   This means our regex split will have the first element blank instead of it
     //   being the piece we want. Thus this hideous <p> prefix kludge
     if(prefix.search("<p>") === 0)
         prefix = prefix.substr(3);
@@ -543,96 +362,62 @@ tj.sanitizeTags = function(tagstr) {
 
     return tagstr;
 }
+
 /* Adds a jot to the remote store.
 *
 *  jotText - the contents (value) of the jot composition area.
 */
 tj.innerAddJot = function(jotText, title, composeArea, titleArea) {
 
-    ///MAYBE NOT WITH THE NEW DIV COMPOSE AREA var 
-    //htmlizedText = tj.htmlizeText(jotText);
-    // Indeed it breaks image and other element insertions (pastes) because it finds the
-    // the url in src = url and wraps earl in an <a> element, thus breaking the original
-    // element. Since it is nice to have url-ish text turned into urls, though of unknown
-    // value to anyone but me but then... it would be nice to get this back and that could
-    // be done be regex'ing to get src = url bits, then search for url-ish stuff around them
-    // but for now I'm just turning it off in favor of being able to insert other objects.
-    
     var commonKey = new Date().getTime();
     var nbID = null;
     var tags = document.getElementById('add_tagsinput').value;
-    tags = tj.sanitizeTags(tags);
-    // if(tags === undefined || tags.trim() === "")
-    //     tags = "";
-    //TODO: Warn and sanitize tags if there are any -tags : they can merge to sanitize
+    tags = tj.sanitizeTags(tags);    // remove -tags
 
-        var newJot = {
-            "commonKeyTS":commonKey,
-            "time":commonKey,
-            "modTime":commonKey,
-            "title":title,
-            ///"jot":htmlizedText,
-            "jot":jotText,
-            "tagList":tags,
-            "extra":"none",
-            "isTodo":false,
-            "done":false,
-        };
+    var newJot = {
+        "commonKeyTS":commonKey,
+        "time":commonKey,
+        "modTime":commonKey,
+        "title":title,
+        "jot":jotText,
+        "tagList":tags,
+        "extra":"none",
+        "isTodo":false,
+        "done":false,
+    };
 
-        //---- JUST TESTING SOMETHING: REMOVE THIS --
-        console.log("'raw' jot to POST:");
-        console.log(newJot);
-        console.log("stringified version:");
-        var stringifiedJot = JSON.stringify(newJot);
-        console.log(stringifiedJot);
-        console.log("parsed(stringified version) version:");
-        var parsed_stringifiedJot = JSON.parse(stringifiedJot);
-        console.log(parsed_stringifiedJot);
-        //-------------------------------------------
-        // Add the jot
-        $.ajax({
-            type: 'POST',
-            data: JSON.stringify(newJot),
-            contentType: "application/json",
-            url: '/jots/addjot',
-            dataType: 'JSON'
-        }).done(function( response ) {    // the .success() method is deprecated as of JQuery 1.5
-            
-            // Check for successful (blank) response
-            if(response.msg === '') {
-                composeArea.innerHTML = "";
-                titleArea.value = "";
-                tj.updateStatus(1);
+    // Add the jot
+    $.ajax({
+        type: 'POST',
+        data: JSON.stringify(newJot),
+        contentType: "application/json",
+        url: '/jots/addjot',
+        dataType: 'JSON'
+    }).done(function( response ) {    // the .success() method is deprecated as of JQuery 1.5
+        
+        // Check for successful (blank) response
+        if(response.msg === '') {
+            composeArea.innerHTML = "";
+            titleArea.value = "";
+            tj.updateStatus(1);
 
-                var jotDiv = tj.renderJot(newJot);
-                var jotsContainer = document.getElementById("jotItems");
-                if(tj.filterObject.filterOrder === "newfirst")  {   // newest are currently shown first
-                    var first = jotsContainer.firstChild;
-                    jotsContainer.insertBefore(jotDiv, jotsContainer.firstChild);
-                }
-                else {  // oldest are currently shown first
-                    jotsContainer.appendChild(jotDiv);
-                }                
+            var jotDiv = tj.renderJot(newJot);
+            var jotsContainer = document.getElementById("jotItems");
+            if(tj.filterObject.filterOrder === "newfirst")  {   // newest are currently shown first
+                var first = jotsContainer.firstChild;
+                jotsContainer.insertBefore(jotDiv, jotsContainer.firstChild);
             }
-            // else {
-            //     // alert the error message our service returned
-            //     alert('Error: ' + response.msg);
-            // }
-        }).fail(function(xhr, textStatus, errorThrown) {    // the .error() method is deprecated as of JQuery 1.5
-            //alert(xhr.responseText);
-            alert('Sorry: adding your jot failed.\n\nYour login has timed out.\n\nPlease try reloading the page and logging in again.');
-        });
+            else {  // oldest are currently shown first
+                jotsContainer.appendChild(jotDiv);
+            }                
+        }
+        else {
+            alert("Database error adding jot: "+ response.msg);
+        }
 
-        // THIS MUST MOVE into done success handler above once we solve the no response bug if invisibly logged (timed) out...
-        // var jotDiv = tj.renderJot(newJot);
-        // var jotsContainer = document.getElementById("jotItems");
-        // if(tj.filterObject.filterOrder === "newfirst")  {   // newest are currently shown first
-        //     var first = jotsContainer.firstChild;
-        //     jotsContainer.insertBefore(jotDiv, jotsContainer.firstChild);
-        // }
-        // else {  // oldest are currently shown first
-        //     jotsContainer.appendChild(jotDiv);
-        // }
+    }).fail(function(xhr, textStatus, errorThrown) {    // the .error() method is deprecated as of JQuery 1.5
+        alert('Sorry: adding your jot failed.\n\nYour login has probably timed out.\n\nPlease try reloading the page and logging in again.');
+    });
 };
 
 /*
@@ -642,21 +427,18 @@ tj.innerAddJot = function(jotText, title, composeArea, titleArea) {
 tj.showAllJots = function(filterObject) {
 
     // getSortedRemoteJots is asynchronous as it uses $.getJSON() so we pass the jot div builder as a callback
-    tj.getSortedRemoteJots(filterObject, function(jots) {    // retieve the jots that meet the filter criteria
+    tj.getSortedRemoteJots(filterObject, function(jots) {    // retrieve the jots that meet the filter criteria
 
         var jotsContainer = document.getElementById("jotItems");
         jotsContainer.innerHTML = "";    // delete all the jotdivs as we are about to rereneder them all
 
         if(jots === undefined || jots.length === 0) {
-            //tj.updateStatus(0);
             tj.reportFiltered();
             return;
         }
 
-        //tj.reportFiltered();
-
-        //TODO pagination...
-        if(jots.length > 1) {    // otherwise we just have the pagination header and no jots
+        // The jots array actually has a header object containing pagination information as it's first element.
+        if(jots.length > 1) {
             var nextJotDiv;
             var fragment = document.createDocumentFragment();
             for(i = 1; i < jots.length; i++) {
@@ -675,7 +457,6 @@ tj.showAllJots = function(filterObject) {
         tj.filterObject.currentPageUrl = "/jots/jotlist/:" + String(jots[0].pageReturned) + "at" + String(tj.filterObject.jotsPerPage);
 
         tj.reportFiltered();
-
     });      
 };
 
@@ -690,19 +471,16 @@ tj.updateStatus = function(count) {
 /* Updates the filter status and pagination report area. */
 tj.reportFiltered = function() {
     document.getElementById("statusarea").innerHTML = tj.getStatusReport(tj.filterObject);        
-    //document.getElementById("numberPerPage").innerHTML = String(tj.filterObject.jotsPerPage) + " jots per page";
     document.getElementById("jotsPerPage").value = String(tj.filterObject.jotsPerPage);
     document.getElementById("currentPageNumber").innerHTML = String(tj.filterObject.pageReturned);
     document.getElementById("pagesTotal").innerHTML = String(tj.filterObject.pagesTotal);
 
     // make the prev/next page active or not
     var classname = (tj.filterObject.nextPageUrl.indexOf(":0at") == -1) ? "paginationLinks" : "paginationLinksInactive";
-    //document.getElementById("nextPageLink").style.display = state;
     document.getElementById("nextPageLink").className = classname;
 
     classname = (tj.filterObject.prevPageUrl.indexOf(":0at") == -1) ? "paginationLinks" : "paginationLinksInactive";
     document.getElementById("prevPageLink").className = classname;
-    //document.getElementById("prevPostfix").style.display = state;
 }
 
 tj.changeJotsPerPage = function() {
@@ -827,11 +605,11 @@ tj.getStatusReport = function(filterObject) {
 * Calls the callback with an array of jots in the correct newest/oldest order, and possibly restricted
 * to a certain set of tags.
 *
+* The array returned by the getJSON call has a header object containing pagination information as it's first element.
+*
 * filterObject - An optional object containing an array of tags, filterMode, and date range information.
 */
 tj.getSortedRemoteJots = function(filterObject, callback) {
-
-    //var isPO = $.isPlainObject(filterObject);
 
     // Validate date range before we go to the server
     if((filterObject !== undefined) && filterObject.filterOnDate) {
@@ -844,7 +622,6 @@ tj.getSortedRemoteJots = function(filterObject, callback) {
     // This header information will be stored locally in the filterObject and
     // possibly modified for the next request.
 
-    //$.getJSON('/jots/jotlist', filterObject, function(data) {
     $.getJSON(tj.filterObject.currentPageUrl, filterObject, function(data) {
         var remoteJots = data;
         tj.status.total = remoteJots.length - 1;    // the first object is the header, not a jot
@@ -881,7 +658,7 @@ tj.inDateRange = function(jot, filterObject) {
         end = t;
     }
 
-    // finally, the real test
+    // Finally, the real test.
     if((jot.commonKeyTS >= start) && (jot.commonKeyTS <= end))
         return true;
     else
@@ -1113,13 +890,12 @@ tj.editJot = function(editLink, commonKey, jotElement, titleinput, tagsinput) {
                 tj.editing = null;
             }
             else {
-                // If something goes wrong, alert the error message that our service returned
-                // TODO can this ever be hit now
-                alert('Error saving edit: ' + response.msg);
+                alert('Database error saving edit: ' + response.msg);
             }
+
         }).fail(function(xhr, textStatus, errorThrown) {    // the .error() method is deprecated as of JQuery 1.5
             //alert(xhr.responseText);
-            alert('Sorry: editing your jot failed.\n\nYour login has timed out.\n\nPlease try reloading the page and logging in again.');
+            alert('Sorry: editing your jot failed.\n\nYour login has probably timed out.\n\nPlease try reloading the page and logging in again.');
         });
  
     }
@@ -1143,14 +919,14 @@ tj.deleteJot = function(commonKey, jotDiv) {
         // Check for successful (blank) response and remove the corresponding div
         if(response.msg === '') {
             tj.showFilteredJots();
-            // if(jotDiv !== undefined) {
-            //     tj.removeJotDiv(jotDiv);
-            //     tj.updateStatus(-1);
-            // }
         }
         else {
-            alert('Error: ' + response.msg);
+            alert('Database error on remove: ' + response.msg);
         }
+
+    }).fail(function(xhr, textStatus, errorThrown) {    // the .error() method is deprecated as of JQuery 1.5
+            //alert(xhr.responseText);
+            alert('Sorry: deleting your jot failed.\n\nYour login has probably timed out.\n\nPlease try reloading the page and logging in again.');
     });
 
 };
@@ -1173,8 +949,6 @@ tj.deleteJots = function() {
         for(var i = 0; i < selectedJots.length; i++) {
             tj.deleteJot(selectedJots[i]);
         }
-
-        ///tj.showFilteredJots();
     }
 }
 
@@ -1200,11 +974,6 @@ tj.toggleOrdering = function() {
 		tj.filterObject.filterOrder = "newfirst";
 	}
     tj.showFilteredJots();
-}
-
-//TODO not yet implemented
-tj.paginator = function(direction) {
-    console.log("tj.paginator() with direction " + direction);
 }
 
 tj.raiseCalendar = function(elementID) {
@@ -1259,38 +1028,40 @@ tj.restoreFilterControlsState = function() {
 
 /* Gathers currently selected and staged tags, and any filter state
 *  and persists them for the next session using this browser on this device. */
-tj.indexedDB.persistFilterControlsState = function() {
+// TODO: Stop using IndexedDB and store the user filter state in the remote db
+tj.indexedDB.persistFilterControlsState = function(filterObject) {
 
-        var db = tj.indexedDB.db;
-        var trans = db.transaction(["SessionState"], "readwrite");
-        trans.oncomplete = function(e) {
-            console.log("storing session state trans.oncomplete() called");
-        }
-        trans.onerror = function(e) {
-            console.log("storing session state trans.onerror() called");
-            console.log(trans.error);
-        }
-        // IndexedDB on client side new schema 3-22-2014:
-        // {keyPath: "commonKeyTS"}, "nimbusID", nimbusTime, modTime, title, jot", "tagList", "extra", isTodo", "done", 
-        var store = trans.objectStore("SessionState");
-        //SWITCHING TO PER USER WAY var row = {"name":"filterState", "filterMode":tj.filterObject.filterMode,
-        var row = {"name":userData.userID, "filterMode":tj.filterObject.filterMode,
-                   "filterOnTags":tj.filterObject.filterOnTags,
-                   "filterOnTagsOr":tj.filterObject.filterOnTagsOr,
-                   "filterOnTagsAnd":tj.filterObject.filterOnTagsAnd,
-                   "filterTags":tj.filterObject.filterTags,
-                   "filterOnDate":tj.filterObject.filterOnDate,
-                   "startDate":tj.filterObject.startDate, "endDate":tj.filterObject.endDate,
-                   "filterOrder":tj.filterObject.filterOrder};
-        var request = store.put(row);  // for now at least there is only one persisted filterObject
-                
-        request.onsuccess = function(e) {
-            console.log("storing session state request.onsuccess");
-        };
-        
-        request.onerror = function(e) {
-            console.log(e);
-        };
+    //var db = tj.indexedDB.db;
+    var trans = tj.indexedDB.db.transaction(["SessionState"], "readwrite");
+
+    trans.oncomplete = function(e) {
+        console.log("storing session state trans.oncomplete() called");
+    }
+
+    trans.onerror = function(e) {
+        console.log("storing session state trans.onerror() called");
+        console.log(trans.error);
+    }
+
+    var store = trans.objectStore("SessionState");
+    
+    var row = {"name":userData.userID, "filterMode":filterObject.filterMode,
+               "filterOnTags":filterObject.filterOnTags,
+               "filterOnTagsOr":filterObject.filterOnTagsOr,
+               "filterOnTagsAnd":filterObject.filterOnTagsAnd,
+               "filterTags":filterObject.filterTags,
+               "filterOnDate":filterObject.filterOnDate,
+               "startDate":filterObject.startDate, "endDate":filterObject.endDate,
+               "filterOrder":filterObject.filterOrder};
+    var request = store.put(row);  // for now at least there is only one persisted filterObject
+            
+    request.onsuccess = function(e) {
+        console.log("storing session state request.onsuccess");
+    };
+    
+    request.onerror = function(e) {
+        console.log(e);
+    };
 };
 
 /* Handler for by date checkbox. */
@@ -1312,12 +1083,10 @@ tj.toggleTagFilter = function() {
     var filterTagDiv = document.getElementById("filter_tag_div");
     if(tagCheckbox) {
         filterTagDiv.className = "display_block";
-        //tj.filterObject.filterMode |= tj.FILTERMODE_TAGS;
         tj.filterObject.filterOnTags = true;
     }
     else {
         filterTagDiv.className = "display_none";
-        //tj.filterObject.filterMode &= ~(tj.FILTERMODE_TAGS);
         tj.filterObject.filterOnTags = false;
     }
 }
@@ -1328,11 +1097,7 @@ tj.toggleTagFilter = function() {
 tj.showFilteredJots = function() {
 
     tj.filterObject.filterTags = tagMgr.getSelectedTags();
-    // if(!validFilterObject(filterObject)) {
 
-    //     tj.showAllJots();
-    // }
-    // if no filtering show everything
     if(!(document.getElementById("filter_by_date").checked || document.getElementById("filter_by_tags").checked)) {
         tj.showAllJots();
     }
@@ -1343,8 +1108,8 @@ tj.showFilteredJots = function() {
         tj.showAllJots(tj.filterObject);
     }
 
-    // finally, persist the filter incase the user closes
-    tj.indexedDB.persistFilterControlsState();
+    // Persist the filter incase the user closes.
+    tj.indexedDB.persistFilterControlsState(tj.filterObject);
 }
 
 /* Returns if a jot meets the current tag filter criteria, false otherwise. */
@@ -1416,15 +1181,9 @@ tagMgr.innerMerge = function(mergeList, tagsElement) {
     //********** NEW Tag STUFF FOR MONGODB ***********
     $.getJSON('/tags/taglist', function(data) {
 
-        //var tagContainer = nbx.Tags.all();    // should be one or zero items, we need the inner list
-        //var tagContainer = data;    // should be one or zero items, we need the inner list
         var existing = [];
         var stringOfTags;
-        // if(!(tagContainer === undefined || tagContainer === null || tagContainer.length === 0)) {
-        //     stringOfTags = tagContainer[0].tagList;
-        //     if(stringOfTags != undefined && stringOfTags != "")
-        //         existing = stringOfTags.split(",");
-        // }
+
         if(data !== null) {
             stringOfTags = data.tagList;
             if(stringOfTags != undefined && stringOfTags != "")
@@ -1442,9 +1201,11 @@ tagMgr.innerMerge = function(mergeList, tagsElement) {
             else
                 mergeAdd.push(trimmed);
         }
-        //BUG/ISSUE due to removals being case-insensitive but adds, because it uses .indexOf, doesn't check
+
+        //TODO: ISSUE: due to removals being case-insensitive but adds, because it uses .indexOf, doesn't check
         //          case insensitively before adding. Thus we can add mX and MX but either -mX or -MX will
         //          remove both of them.
+
         // do removals first
         var existingMinusRemoved = [];
         if(existing.length != 0) {    // if no existing tags then there's nothing to remove
@@ -1460,6 +1221,7 @@ tagMgr.innerMerge = function(mergeList, tagsElement) {
                     existingMinusRemoved.push(existing[i]);
             }
         }
+
         // now additions and sort
         for(var i = 0; i < mergeAdd.length; i++) {
             if(existingMinusRemoved.indexOf(mergeAdd[i]) == -1)
@@ -1469,14 +1231,8 @@ tagMgr.innerMerge = function(mergeList, tagsElement) {
 
         // update the remote tag list, which might be empty or non-existent
         var tags = existingMinusRemoved.join();
-
         var taglist = {"userID":userData.userID, "tagList":tags, "extra":"none"};
-        //var taglist = {"userName":"tomba", "tagList":tags, "extra":"none"};
-        ///bye bye nimbusbase...var tagsRemote = nbx.Tags.all();
 
-        //************************************************
-
-        //********** NEW Tag STUFF FOR MONGODB ***********
         $.ajax({
             type: 'POST',
             //type: 'PUT',  //makes more sense but some browsers don't support from inside a form
@@ -1493,20 +1249,13 @@ tagMgr.innerMerge = function(mergeList, tagsElement) {
             }
             else {
                 // If something goes wrong, alert the error messag that our service returned
-                alert('Error: ' + response.msg);
+                alert('Database error updating tags: ' + response.msg);
             }
+
+        }).fail(function(xhr, textStatus, errorThrown) {    // the .error() method is deprecated as of JQuery 1.5
+            alert('Sorry: updating the tags failed.\n\nYour login has probably timed out.\n\nPlease try reloading the page and logging in again.');
         });
 
-        //************************************************
-        // if(tagsRemote === undefined || tagsRemote.length == 0) {
-        //     nbx.Tags.create({tagList:tags, "extra":""})
-        // }
-        // else {
-        //     tagsRemote[0].tagList = tags;
-        //     tagsRemote[0].save();
-        //     nbx.Tags.sync_all(function() {console.log("tagManagerMerge() nbx.Tags.sync_all() callback called.")});
-        // }
-        // update the page's Tag Selector select element
         tagMgr.populateTagSelector(existingMinusRemoved);
     });
 }
@@ -1566,78 +1315,6 @@ tagMgr.populateTagSelector = function(fromList) {
             newItem.innerHTML = fromList[i];
             selector.appendChild(newItem);
         }
-}
-
-/*
-* A currently minimal helper function that lets user's carriage returns shine through.
-*   Very simple for now: we just replace n returns with with n <br />
-*   elements. We do not yet create actual separate html paragraphs.
-*
-*   Also attempts to recognize urls and wrap them in <a></a> to make
-*   them into real links within the jot.
-*
-*   That's all for the moment.
-*
-*  text - the contents (value) of the jot compose area
-*/
-tj.htmlizeText = function(text) {
-    //var parse_url = /^(?:([A-Za-z]+):)?(\/{0,3})([0-9.\-A-Za-z]+)(?::(\d+))?(?:\/([^?#]*))?(?:\?([^#]*))?(?:#(.*))?/$;
-	//var parse_url = /[-a-zA-Z0-9@:%_\+.~#?&//=]{2,256}\.[a-z]{2,4}\b(\/[-a-zA-Z0-9@:%_\+.~#?&//=]*)?/gi;
-	//var parse_url = /((http|ftp|https):\/\/)?[\w-]+(\.[\w-]+)+([\w.,@?^=%&amp;:\/~+#-]*[\w@?^=%&amp;\/~+#-])?/g;  // like all three: only sort of works
-	
-	//OK I've mod'd and munged and this works pretty well, probably has leaks, and doesn't yet handle
-	//things like "file:///C:/WebSites/ThoughtJotBasic/tj.html" but it's definitely a decent start
-	//but the long term solution is to use a real full editor widget for the jot composition area.
-	//refs: started with /(http|ftp|https):\/\/[\w-]+(\.[\w-]+)+([\w.,@?^=%&amp;:\/~+#-]*[\w@?^=%&amp;\/~+#-])?/
-	//from: http://stackoverflow.com/questions/8188645/javascript-regex-to-match-a-url-in-a-field-of-text
-	//and mod'd, mostly to not require a scheme
-	var parse_url = /((http|ftp|https):\/\/)?[\w-]+(\.[\w-]+)+([\w.,@?^=%&amp;:\/~+#-]*[\w@?^=%&amp;\/~+#-])?/g;
-	var parse_file = /file:(\/){2,3}([A-Za-z]:\/)?[\w-\.\/]+/g;
-	//var parse_file = /file:[\w-\.\/:]+/g;
-	//var parse_url = /((http|ftp|https|file):(\/){2-3})?([A-Za-z]:\/)?[\w-]+(\.[\w-]+)+([\w.,@?^=%&amp;:\/~+#-]*[\w@?^=%&amp;\/~+#-])?/g;
-	var parse_scheme = /((http|ftp|https|file):\/\/)?/;
-	var allurls = [];
-	var newlinks = [];
-	var result = null;
-	var linktext = "";
-	// first find any url-ish strings
-	while(result = parse_url.exec(text)) {
-        allurls.push(result[0]);   // the url-ish string, must not change as we need below for the replace operation
-
-        // add a scheme of http:// if there isn't one or we'll get the local page root tacked on and end up nowhere
-        var proto = parse_scheme.exec(result[0]);
-		if(proto === null || proto[0] === "")
-		    linktext = "<a href='http://" + result[0] + "'> " + result[0] + " </a>";
-		else  // add the http://
-		    linktext = "<a href='" + result[0] + "'> " + result[0] + " </a>";
-		
-		newlinks.push(linktext);
-	}
-		
-	// now replace the "links" we found in the jot - and possibly http-ized - with the real links we just made
-	//TODO: this replace can cause problems if the same url string is in the jot text more than once - whether
-	// or not one has a scheme prefix and the other doesn't ...
-	for(var i = 0; i < allurls.length; i++) {
-	    var zeta = text.replace(allurls[i], newlinks[i]);
-		text = zeta;
-	}
-
-    // finally, deal with converting returns to <br /> elements
-	// TODO: convert ws at front of newline to nbsps to wrap up our current minimal format-intention preservation
-	var pieces = text.split('\n');
-	if(pieces.length == 1)
-	    return(text);
-	// single returns will vanish, n>1 returns in a row lead to n-1 blank array elements
-	var htmlized = "";
-	for(var i = 0; i < pieces.length; i++) {
-		if(pieces[i] === "")
-		    htmlized = htmlized + "<br />";
-		else if(i === pieces.length - 1)
-		    htmlized = htmlized + pieces[i];
-		else
-		    htmlized = htmlized + pieces[i] + "<br />";
-	}
-	return(htmlized);
 }
 
 // Let's get started
